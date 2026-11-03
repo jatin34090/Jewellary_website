@@ -62,6 +62,7 @@ export function nextClientIp(): string {
 export interface TestHttp {
   get(path: string, token?: string): SupertestRequest;
   post(path: string, body?: unknown, token?: string): SupertestRequest;
+  put(path: string, body?: unknown, token?: string): SupertestRequest;
   patch(path: string, body?: unknown, token?: string): SupertestRequest;
   delete(path: string, token?: string): SupertestRequest;
 }
@@ -79,6 +80,14 @@ function createTestHttp(app: INestApplication): TestHttp {
       authorise(
         request(server())
           .post(path)
+          .set("X-Forwarded-For", nextClientIp())
+          .send(body ?? {}),
+        token,
+      ),
+    put: (path, body, token) =>
+      authorise(
+        request(server())
+          .put(path)
           .set("X-Forwarded-For", nextClientIp())
           .send(body ?? {}),
         token,

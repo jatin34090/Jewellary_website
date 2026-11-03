@@ -2,10 +2,11 @@ import type { ReactNode } from "react";
 
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
-import { SITE } from "@/lib/config/site";
+import { getStoreSettings } from "@/lib/store/queries";
 
 /** Layout for the customer-facing shop: announcement bar, header, content and footer. */
-export default function StoreLayout({ children }: { children: ReactNode }) {
+export default async function StoreLayout({ children }: { children: ReactNode }) {
+  const settings = await getStoreSettings();
   return (
     <>
       <a
@@ -15,13 +16,13 @@ export default function StoreLayout({ children }: { children: ReactNode }) {
         Skip to content
       </a>
       <div className="bg-brown px-4 py-2 text-center text-[11px] tracking-[0.18em] text-cream/90 uppercase">
-        {SITE.tagline}
+        {settings.brand.tagline}
       </div>
-      <SiteHeader />
+      <SiteHeader brand={settings.brand} />
       <main id="main" className="flex-1">
         {children}
       </main>
-      <SiteFooter />
+      <SiteFooter brand={settings.brand} />
     </>
   );
 }

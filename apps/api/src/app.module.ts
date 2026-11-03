@@ -11,6 +11,8 @@ import { ResponseInterceptor } from "./common/response/response.interceptor";
 import { AuditModule } from "./modules/audit/audit.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { AddressesModule } from "./modules/addresses/addresses.module";
+import { BannersModule } from "./modules/banners/banners.module";
+import { CustomersModule } from "./modules/customers/customers.module";
 import { CategoriesModule } from "./modules/categories/categories.module";
 import { CheckoutModule } from "./modules/checkout/checkout.module";
 import { CouponsModule } from "./modules/coupons/coupons.module";
@@ -46,6 +48,8 @@ import { PrismaModule } from "./prisma/prisma.module";
     OrdersModule,
     UploadsModule,
     DashboardModule,
+    BannersModule,
+    CustomersModule,
   ],
   providers: [
     // Guards run in this order: rate limit, then authentication, then authorisation.

@@ -103,10 +103,10 @@ Status key: `[x]` done · `[ ]` pending · `[~]` partially done
 - [x] Inventory: stock levels, set or adjust with a reason, every change in the audit log
 - [x] Orders: list with status filter, detail with customer and courier, status changes that follow the allowed rules
 - [x] Coupons: create, pause and resume, usage counts
-- [ ] Store settings: brand name, logo, favicon, theme colours, contact details, social links
-- [ ] Homepage banners and sections
-- [ ] Shipping and tax settings screen (values are stored and used; no screen yet)
-- [ ] Customers list
+- [x] Store settings: brand name, tagline, logo, favicon, theme colours, contact details, social links (storefront reads them)
+- [x] Homepage banners (hero shows the live banner) and section on/off and order
+- [x] Shipping and tax screen with a live preview of what a shopper pays
+- [x] Customers list with order count and total spent (paid orders)
 - [ ] Analytics beyond the dashboard summary
 - [ ] Cloudinary upload live test (needs CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET)
 

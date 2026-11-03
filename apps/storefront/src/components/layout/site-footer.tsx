@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { SITE } from "@/lib/config/site";
+import type { StorePublicSettings } from "@/lib/store/queries";
 
 const SHOP_LINKS = [
   { label: "Shop All", href: "/shop" },
@@ -9,14 +9,14 @@ const SHOP_LINKS = [
   { label: "Pendants", href: "/shop?category=pendants" },
 ];
 
-export function SiteFooter() {
+export function SiteFooter({ brand }: { brand: StorePublicSettings["brand"] }) {
   return (
     <footer className="mt-20 bg-brown text-cream">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-3">
         <div>
-          <p className="font-serif text-2xl tracking-[0.25em] text-gold">{SITE.name}</p>
-          <p className="mt-3 max-w-xs text-sm leading-relaxed text-cream/80">{SITE.description}</p>
-          <p className="mt-4 font-serif text-base italic text-cream/90">{SITE.tagline}</p>
+          <p className="font-serif text-2xl tracking-[0.25em] text-gold">{brand.name}</p>
+          <p className="mt-3 max-w-xs text-sm leading-relaxed text-cream/80">{brand.description}</p>
+          <p className="mt-4 font-serif text-base italic text-cream/90">{brand.tagline}</p>
         </div>
 
         <nav aria-label="Footer">
@@ -36,18 +36,21 @@ export function SiteFooter() {
           <h2 className="text-sm tracking-[0.2em] text-gold uppercase">Enquiries</h2>
           <p className="mt-4 text-sm text-cream/85">For orders and enquiries</p>
           <a
-            href={`mailto:${SITE.email}`}
+            href={`mailto:${brand.email}`}
             className="mt-1 block text-sm text-cream underline-offset-4 hover:underline"
           >
-            {SITE.email}
+            {brand.email}
           </a>
-          {SITE.socialLinks.length > 0 && (
-            <ul className="mt-5 flex gap-4 text-sm">
-              {SITE.socialLinks.map((link) => (
-                <li key={link.href}>
+          {brand.phone ? <p className="mt-1 text-sm text-cream/85">{brand.phone}</p> : null}
+          {brand.address ? <p className="mt-1 text-sm text-cream/85">{brand.address}</p> : null}
+          {brand.socialLinks.length > 0 ? (
+            <ul className="mt-5 flex flex-wrap gap-4 text-sm">
+              {brand.socialLinks.map((link) => (
+                <li key={link.url}>
                   <a
-                    href={link.href}
+                    href={link.url}
                     className="text-cream/85 hover:text-gold"
+                    target="_blank"
                     rel="noopener noreferrer"
                   >
                     {link.label}
@@ -55,11 +58,11 @@ export function SiteFooter() {
                 </li>
               ))}
             </ul>
-          )}
+          ) : null}
         </div>
       </div>
       <div className="border-t border-cream/15 px-4 py-5 text-center text-xs text-cream/60">
-        © {new Date().getFullYear()} {SITE.name}. All rights reserved.
+        © {new Date().getFullYear()} {brand.name}. All rights reserved.
       </div>
     </footer>
   );

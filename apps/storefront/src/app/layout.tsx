@@ -1,21 +1,22 @@
 import type { Metadata, Viewport } from "next";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import { AuthProvider } from "@/components/auth/auth-provider";
-import { SITE } from "@/lib/config/site";
+import { getStoreSettings, themeStyle } from "@/lib/store/queries";
 
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: { default: `${SITE.name} | ${SITE.tagline}`, template: `%s | ${SITE.name}` },
-  description: SITE.description,
-  openGraph: {
-    title: SITE.name,
-    description: SITE.tagline,
-    siteName: SITE.name,
-    type: "website",
-  },
-};
+/** Brand name, tagline and favicon come from the admin store settings. */
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getStoreSettings();
+  const { name, tagline, description, faviconUrl } = settings.brand;
+  return {
+    title: { default: `${name} | ${tagline}`, template: `%s | ${name}` },
+    description,
+    openGraph: { title: name, description: tagline, siteName: name, type: "website" },
+    icons: faviconUrl ? { icon: faviconUrl } : undefined,
+  };
+}
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -23,9 +24,12 @@ export const viewport: Viewport = {
   themeColor: "#38251d",
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const settings = await getStoreSettings();
+  const style = themeStyle(settings.theme) as CSSProperties;
+
   return (
-    <html lang="en-IN">
+    <html lang="en-IN" style={style}>
       <body className="flex min-h-screen flex-col antialiased">
         <AuthProvider>{children}</AuthProvider>
       </body>
