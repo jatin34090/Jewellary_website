@@ -1,0 +1,500 @@
+// Prisma schema for the jewellery e-commerce platform.
+//
+// Conventions
+// - Primary keys are UUIDv7 (time-ordered, so B-tree inserts stay cheap as tables grow).
+// - Money uses DECIMAL(12,2). Never floats. All amounts are INR unless stated otherwise.
+// - Soft delete (deletedAt) only where history matters: User, Category, Product.
+// - Foreign keys use RESTRICT for history-bearing rows (orders, payments) and CASCADE for
+//   owned child rows (addresses, cart items, product images).
+// - The connection URL lives in prisma.config.ts, not here, so the schema stays portable.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  CUSTOMER
+  STAFF
+  ADMIN
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  RAZORPAY
+}
+
+enum PaymentStatus {
+  CREATED
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+}
+
+enum ShipmentProvider {
+  SHIPROCKET
+}
+
+enum ShipmentStatus {
+  PENDING
+  BOOKED
+  IN_TRANSIT
+  DELIVERED
+  RETURNED
+  CANCELLED
+}
+
+enum BannerPlacement {
+  HOME_HERO
+  HOME_PROMO
+}
+
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
+
+model User {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  email           String    @unique @db.VarChar(255) // stored lower-cased
+  passwordHash    String    @db.VarChar(255)
+  firstName       String    @db.VarChar(100)
+  lastName        String?   @db.VarChar(100)
+  phone           String?   @unique @db.VarChar(20)
+  role            UserRole  @default(CUSTOMER)
+  isActive        Boolean   @default(true)
+  emailVerifiedAt DateTime?
+  lastLoginAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  addresses      Address[]
+  refreshTokens  RefreshToken[]
+  cart           Cart?
+  wishlist       Wishlist?
+  orders         Order[]
+  reviews        Review[]
+  auditLogs      AuditLog[]
+  settingUpdates StoreSetting[]
+
+  @@index([role])
+  @@index([deletedAt])
+}
+
+/// Refresh tokens are stored only as SHA-256 hashes. Rotation sets revokedAt and replacedById.
+model RefreshToken {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  userId       String    @db.Uuid
+  tokenHash    String    @unique @db.VarChar(64)
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  replacedById String?   @db.Uuid
+  userAgent    String?   @db.VarChar(255)
+  ipAddress    String?   @db.VarChar(45)
+  createdAt    DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+}
+
+model Address {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  userId     String   @db.Uuid
+  label      String?  @db.VarChar(50)
+  fullName   String   @db.VarChar(150)
+  phone      String   @db.VarChar(20)
+  line1      String   @db.VarChar(255)
+  line2      String?  @db.VarChar(255)
+  city       String   @db.VarChar(100)
+  state      String   @db.VarChar(100)
+  postalCode String   @db.VarChar(10)
+  country    String   @default("IN") @db.VarChar(2)
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Catalogue
+// ---------------------------------------------------------------------------
+
+model Category {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  parentId    String?   @db.Uuid
+  name        String    @db.VarChar(120)
+  slug        String    @unique @db.VarChar(140)
+  description String?
+  imageUrl    String?   @db.VarChar(500)
+  sortOrder   Int       @default(0)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  parent   Category?         @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[]        @relation("CategoryTree")
+  products ProductCategory[]
+
+  @@index([parentId])
+  @@index([isActive, sortOrder])
+}
+
+model Product {
+  id             String        @id @default(uuid(7)) @db.Uuid
+  sku            String        @unique @db.VarChar(64)
+  slug           String        @unique @db.VarChar(255)
+  name           String        @db.VarChar(255)
+  description    String
+  status         ProductStatus @default(DRAFT)
+  price          Decimal       @db.Decimal(12, 2)
+  compareAtPrice Decimal?      @db.Decimal(12, 2) // original price shown struck-through when discounted
+  weightGrams    Decimal?      @db.Decimal(8, 2)
+  material       String?       @db.VarChar(100)
+  isFeatured     Boolean       @default(false)
+  salesCount     Int           @default(0) // denormalised counter that drives "best sellers"
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  deletedAt      DateTime?
+
+  images        ProductImage[]
+  categories    ProductCategory[]
+  inventory     Inventory?
+  cartItems     CartItem[]
+  wishlistItems WishlistItem[]
+  orderItems    OrderItem[]
+  reviews       Review[]
+
+  // Listing queries filter on status, then sort by price, newest or best seller.
+  @@index([status, deletedAt, createdAt])
+  @@index([status, deletedAt, price])
+  @@index([status, deletedAt, salesCount])
+  @@index([status, isFeatured])
+}
+
+model ProductImage {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  productId String   @db.Uuid
+  url       String   @db.VarChar(500)
+  publicId  String   @db.VarChar(255) // Cloudinary public id, needed to delete the asset
+  altText   String?  @db.VarChar(255)
+  sortOrder Int      @default(0)
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, sortOrder])
+}
+
+/// Many-to-many join between products and categories.
+model ProductCategory {
+  productId  String @db.Uuid
+  categoryId String @db.Uuid
+
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([productId, categoryId])
+  @@index([categoryId])
+}
+
+/// One row per product. Quantities are guarded by CHECK constraints added in a manual migration.
+model Inventory {
+  id                String   @id @default(uuid(7)) @db.Uuid
+  productId         String   @unique @db.Uuid
+  quantityOnHand    Int      @default(0)
+  quantityReserved  Int      @default(0) // held by pending orders, released if payment fails
+  lowStockThreshold Int      @default(5)
+  updatedAt         DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// Shopping
+// ---------------------------------------------------------------------------
+
+/// A cart belongs to a logged-in user, or to a guest identified by a hashed session token.
+model Cart {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  userId         String?   @unique @db.Uuid
+  guestTokenHash String?   @unique @db.VarChar(64)
+  expiresAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user  User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+
+  @@index([expiresAt])
+}
+
+model CartItem {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  cartId    String   @db.Uuid
+  productId String   @db.Uuid
+  quantity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, productId])
+  @@index([productId])
+}
+
+model Wishlist {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @unique @db.Uuid
+  createdAt DateTime @default(now())
+
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items WishlistItem[]
+}
+
+model WishlistItem {
+  wishlistId String   @db.Uuid
+  productId  String   @db.Uuid
+  createdAt  DateTime @default(now())
+
+  wishlist Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([wishlistId, productId])
+  @@index([productId])
+}
+
+model Coupon {
+  id                String       @id @default(uuid(7)) @db.Uuid
+  code              String       @unique @db.VarChar(40) // stored upper-case
+  description       String?      @db.VarChar(255)
+  discountType      DiscountType
+  discountValue     Decimal      @db.Decimal(12, 2)
+  maxDiscountAmount Decimal?     @db.Decimal(12, 2)
+  minOrderAmount    Decimal      @default(0) @db.Decimal(12, 2)
+  usageLimit        Int?
+  usedCount         Int          @default(0)
+  startsAt          DateTime     @default(now())
+  expiresAt         DateTime?
+  isActive          Boolean      @default(true)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  orders Order[]
+
+  @@index([isActive, expiresAt])
+}
+
+// ---------------------------------------------------------------------------
+// Orders and payments
+// ---------------------------------------------------------------------------
+
+model Order {
+  id              String      @id @default(uuid(7)) @db.Uuid
+  orderNumber     String      @unique @db.VarChar(20) // human-readable, e.g. JWL-20260103-0042
+  userId          String      @db.Uuid
+  status          OrderStatus @default(PENDING_PAYMENT)
+  currency        String      @default("INR") @db.VarChar(3)
+  subtotal        Decimal     @db.Decimal(12, 2)
+  discountAmount  Decimal     @default(0) @db.Decimal(12, 2)
+  shippingAmount  Decimal     @default(0) @db.Decimal(12, 2)
+  taxAmount       Decimal     @default(0) @db.Decimal(12, 2)
+  totalAmount     Decimal     @db.Decimal(12, 2)
+  couponId        String?     @db.Uuid
+  couponCode      String?     @db.VarChar(40) // snapshot, survives coupon edits
+  shippingAddress Json // immutable snapshot of the address at checkout
+  idempotencyKey  String?     @unique @db.VarChar(64) // prevents duplicate orders on retries
+  paidAt          DateTime?
+  cancelledAt     DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  user      User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  coupon    Coupon?     @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  items     OrderItem[]
+  payments  Payment[]
+  shipments Shipment[]
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([couponId])
+}
+
+/// Price, name and SKU are copied at checkout. The catalogue can change later without rewriting history.
+model OrderItem {
+  id        String  @id @default(uuid(7)) @db.Uuid
+  orderId   String  @db.Uuid
+  productId String  @db.Uuid
+  sku       String  @db.VarChar(64)
+  name      String  @db.VarChar(255)
+  unitPrice Decimal @db.Decimal(12, 2)
+  quantity  Int
+  lineTotal Decimal @db.Decimal(12, 2)
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model Payment {
+  id                  String          @id @default(uuid(7)) @db.Uuid
+  orderId             String          @db.Uuid
+  provider            PaymentProvider @default(RAZORPAY)
+  providerOrderId     String          @unique @db.VarChar(64)
+  providerPaymentId   String?         @unique @db.VarChar(64)
+  amount              Decimal         @db.Decimal(12, 2)
+  currency            String          @default("INR") @db.VarChar(3)
+  status              PaymentStatus   @default(CREATED)
+  method              String?         @db.VarChar(30)
+  signatureVerifiedAt DateTime?
+  failureReason       String?         @db.VarChar(500)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([status, createdAt])
+}
+
+/// Every inbound provider webhook is recorded once. A unique eventId makes redelivery a no-op.
+model WebhookEvent {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  provider    String    @db.VarChar(30)
+  eventId     String    @db.VarChar(100)
+  eventType   String    @db.VarChar(100)
+  payload     Json
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@unique([provider, eventId])
+  @@index([createdAt])
+}
+
+model Shipment {
+  id                 String           @id @default(uuid(7)) @db.Uuid
+  orderId            String           @db.Uuid
+  provider           ShipmentProvider @default(SHIPROCKET)
+  providerShipmentId String?          @unique @db.VarChar(64)
+  awbCode            String?          @unique @db.VarChar(64)
+  courierName        String?          @db.VarChar(100)
+  trackingUrl        String?          @db.VarChar(500)
+  status             ShipmentStatus   @default(PENDING)
+  shippedAt          DateTime?
+  deliveredAt        DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Engagement
+// ---------------------------------------------------------------------------
+
+model Review {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  productId  String   @db.Uuid
+  userId     String   @db.Uuid
+  rating     Int // 1..5, enforced by CHECK constraint in the manual migration
+  title      String?  @db.VarChar(150)
+  body       String?  @db.VarChar(2000)
+  isApproved Boolean  @default(false) // moderation gate: only approved reviews are public
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, userId]) // one review per customer per product
+  @@index([productId, isApproved, createdAt])
+}
+
+model Banner {
+  id             String          @id @default(uuid(7)) @db.Uuid
+  placement      BannerPlacement
+  title          String          @db.VarChar(150)
+  subtitle       String?         @db.VarChar(255)
+  imageUrl       String          @db.VarChar(500)
+  mobileImageUrl String?         @db.VarChar(500)
+  linkUrl        String?         @db.VarChar(500)
+  sortOrder      Int             @default(0)
+  isActive       Boolean         @default(true)
+  startsAt       DateTime?
+  endsAt         DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([placement, isActive, sortOrder])
+}
+
+/// Key/value settings (brand name, logo, theme colours, contact details, social links, homepage layout).
+/// Values are JSON, so new settings do not need a migration.
+model StoreSetting {
+  key         String   @id @db.VarChar(100)
+  value       Json
+  updatedById String?  @db.Uuid
+  updatedAt   DateTime @updatedAt
+
+  updatedBy User? @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+}
+
+/// Append-only record of admin and security-relevant actions.
+model AuditLog {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  actorId    String?  @db.Uuid
+  action     String   @db.VarChar(100)
+  entityType String   @db.VarChar(50)
+  entityId   String?  @db.VarChar(64)
+  changes    Json?
+  ipAddress  String?  @db.VarChar(45)
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
+  @@index([createdAt])
+}

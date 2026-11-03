@@ -4,6 +4,7 @@ dist
 .turbo
 coverage
 pnpm-lock.yaml
+packages/database/src/generated
 .env
 .env.*
 !.env.example

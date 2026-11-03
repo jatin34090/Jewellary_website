@@ -34,7 +34,14 @@ services:
     image: redis:7-alpine
     container_name: jewellery-ecommerce-redis-dev
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}"]
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--requirepass",
+        "${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}",
+      ]
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     ports:

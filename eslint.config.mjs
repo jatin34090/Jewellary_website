@@ -23,6 +23,10 @@ export default tseslint.config(
         "error",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
+      // NestJS modules are empty classes whose decorator carries all the configuration.
+      "@typescript-eslint/no-extraneous-class": ["error", { allowWithDecorator: true }],
+      // Numbers in messages and log lines are safe to interpolate.
+      "@typescript-eslint/restrict-template-expressions": ["error", { allowNumber: true }],
     },
   },
   {

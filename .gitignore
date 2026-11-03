@@ -18,6 +18,9 @@ coverage/
 .env.*
 !.env.example
 
+# Prisma client is generated from schema.prisma (run `pnpm --filter @jewellery/database db:generate`)
+packages/database/src/generated/
+
 # Local Docker data (volumes live in Docker, not in the repo)
 .docker-data/
 

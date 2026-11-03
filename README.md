@@ -35,12 +35,12 @@ docker-compose.dev.yml  Local PostgreSQL and Redis
 
 ## Prerequisites (Windows)
 
-| Tool            | Required version | Check command        |
-| --------------- | ---------------- | -------------------- |
-| Node.js         | 22 LTS           | `node --version`     |
-| pnpm            | 10.x             | `pnpm --version`     |
-| Git             | any recent       | `git --version`      |
-| Docker Desktop  | running          | `docker info`        |
+| Tool           | Required version | Check command    |
+| -------------- | ---------------- | ---------------- |
+| Node.js        | 22 LTS           | `node --version` |
+| pnpm           | 10.x             | `pnpm --version` |
+| Git            | any recent       | `git --version`  |
+| Docker Desktop | running          | `docker info`    |
 
 ## First-time setup
 
@@ -61,12 +61,12 @@ pnpm infra:up
 
 ## Local ports
 
-| Service     | Host address     | Port |
-| ----------- | ---------------- | ---- |
-| Storefront  | localhost        | 3000 |
-| API         | localhost        | 3001 |
-| PostgreSQL  | 127.0.0.1 only   | 5433 |
-| Redis       | 127.0.0.1 only   | 6380 |
+| Service    | Host address   | Port |
+| ---------- | -------------- | ---- |
+| Storefront | localhost      | 3000 |
+| API        | localhost      | 3001 |
+| PostgreSQL | 127.0.0.1 only | 5433 |
+| Redis      | 127.0.0.1 only | 6380 |
 
 PostgreSQL and Redis are bound to `127.0.0.1` and are not reachable from other machines.
 
@@ -77,13 +77,37 @@ pnpm infra:up        # start PostgreSQL and Redis (waits until healthy)
 pnpm infra:down      # stop PostgreSQL and Redis (keeps data)
 pnpm infra:logs      # follow container logs
 
-pnpm dev             # run all apps in watch mode (once apps exist)
+pnpm db:migrate      # create and apply a migration after changing schema.prisma
+pnpm db:deploy       # apply committed migrations only (used in CI and production)
+pnpm db:generate     # regenerate the Prisma client
+
+pnpm --filter @jewellery/api dev    # API in watch mode, http://127.0.0.1:3001
+pnpm --filter @jewellery/api test   # API unit and end-to-end tests (needs infra:up)
 pnpm lint            # ESLint across all packages
 pnpm typecheck       # TypeScript strict type checking
+pnpm test            # all test suites
 pnpm build           # build all apps and packages
 pnpm format          # format with Prettier
 pnpm format:check    # check formatting without changing files
 ```
+
+## API
+
+- Base URL: `http://127.0.0.1:3001/api/v1`
+- Swagger UI: `http://127.0.0.1:3001/api/v1/docs` (enabled by `SWAGGER_ENABLED=true`, off in production)
+- Health: `GET /api/v1/health/live` (process up), `GET /api/v1/health` (database reachable)
+- Auth: `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout`
+- Every response is wrapped: `{ "success": true, "data": ... }` or `{ "success": false, "error": { "code", "message", "details?" } }`.
+- Access tokens (15 min) go in `Authorization: Bearer <token>`. The refresh token is an HttpOnly cookie scoped to `/api/v1/auth`.
+
+Routes are protected by default. Mark a route `@Public()` to open it, and `@Roles(...)` to restrict it by role.
+
+## Database
+
+The schema lives in `packages/database/prisma/schema.prisma`. Migrations are in
+`packages/database/prisma/migrations`. `20261103094401_add_integrity_constraints` adds CHECK
+constraints (non-negative money, positive quantities, rating range) that Prisma cannot express.
+Keep those rules when you edit related tables.
 
 ## Data safety
 

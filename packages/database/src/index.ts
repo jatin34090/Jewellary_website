@@ -1,2 +1,2 @@
-// Prisma schema, migrations and generated client wrapper (added in Phase 2).
-export {};
+export { createPrismaClient, type AppPrismaClient } from "./client";
+export * from "./generated/prisma/client";

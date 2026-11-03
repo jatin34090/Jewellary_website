@@ -20,17 +20,23 @@ Status key: `[x]` done · `[ ]` pending · `[~]` partially done
 - [x] Verify Redis connectivity (PING with auth; unauthenticated access rejected)
 - [x] Verify `pnpm typecheck` and `pnpm lint` pass across all packages
 - [x] Write README with setup and daily commands
-- [ ] Install Node.js 22 LTS (local machine has 20.19.4; project targets 22)
-- [ ] User approval to start Phase 2
+- [x] Node.js version decision: Node 20.19.4 is kept. Every Phase 2 dependency supports it (Prisma 7, NestJS 12). Node 22 is still listed as the target in `package.json`; install it when convenient
+- [x] User approval to start Phase 2
 
 ## Phase 2 — Database and backend foundation
 
-- [ ] Design Prisma schema (User, Role, Address, Product, ProductImage, Category, ProductCategory, Inventory, Cart, CartItem, Wishlist, WishlistItem, Order, OrderItem, Payment, Shipment, Coupon, Review, Banner, StoreSetting, AuditLog)
-- [ ] Configure Prisma migrations
-- [ ] Set up NestJS application (`apps/api`)
-- [ ] Health endpoint
-- [ ] Authentication (argon2/bcrypt, secure cookies, roles)
-- [ ] Swagger documentation at `/api/v1/docs`
+- [x] Design Prisma schema (all 21 requested models plus RefreshToken and WebhookEvent; Role is an enum on User)
+- [x] Configure Prisma 7 migrations (`init` and `add_integrity_constraints` with CHECK constraints)
+- [x] Set up NestJS application (`apps/api`, NestJS 12, Node 20 compatible)
+- [x] Health endpoints (`/health/live`, `/health` with database check)
+- [x] Authentication: Argon2id hashing, short-lived access tokens, rotating refresh tokens in HttpOnly cookies, reuse detection, global guards, role-based authorisation
+- [x] Swagger documentation at `/api/v1/docs`
+- [x] Consistent success and error envelopes, DTO validation with whitelisting, rate limits on auth routes
+- [x] Tests: 22 passing (auth flows, token rotation and replay, mass-assignment protection, DB constraints, env validation, role guard)
+- [ ] Redis-backed rate limit storage (Phase 7)
+- [ ] Admin bootstrap / seed script (Phase 6)
+- [ ] Account lockout after repeated failed logins (Phase 7)
+- [ ] Email verification and password reset (Phase 7, with the notifications worker)
 
 ## Phase 3 — Product catalogue
 
