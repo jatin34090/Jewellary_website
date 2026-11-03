@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+/* VRINOOR brand theme. Colours and type follow the reference design. */
+@theme {
+  --color-brown: #38251d;
+  --color-brown-soft: #5c4536;
+  --color-cream: #f8f1e7;
+  --color-cream-deep: #efe3d2;
+  --color-sand: #e9ddce;
+  --color-gold: #b39465;
+  --color-gold-deep: #987344;
+  --color-line: #e2d3bf;
+  --color-muted: #7a6b5e;
+
+  --font-serif: Georgia, "Times New Roman", serif;
+  --font-sans: Arial, Helvetica, sans-serif;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-cream);
+    color: var(--color-brown);
+    font-family: var(--font-sans);
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-serif);
+    letter-spacing: 0.02em;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 2px;
+  }
+}
