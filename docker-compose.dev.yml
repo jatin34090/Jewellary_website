@@ -1,0 +1,61 @@
+# Local development infrastructure only (PostgreSQL + Redis).
+# Apps run on the host with pnpm; these containers are bound to 127.0.0.1 only.
+# Container names, network and volumes are unique to this project and never
+# shared with the existing Store Builder stack.
+#
+# Usage (PowerShell, from the repo root):
+#   pnpm infra:up      # start and wait until healthy
+#   pnpm infra:down    # stop containers (keeps data)
+
+name: jewellery-ecommerce-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: jewellery-ecommerce-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-jewellery}
+      POSTGRES_USER: ${POSTGRES_USER:-jewellery}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - jewellery-ecommerce-pgdata-dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - jewellery-ecommerce-dev
+
+  redis:
+    image: redis:7-alpine
+    container_name: jewellery-ecommerce-redis-dev
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6380}:6379"
+    volumes:
+      - jewellery-ecommerce-redisdata-dev:/data
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=$$REDIS_PASSWORD redis-cli ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - jewellery-ecommerce-dev
+
+networks:
+  jewellery-ecommerce-dev:
+    name: jewellery-ecommerce-dev-net
+    driver: bridge
+
+volumes:
+  jewellery-ecommerce-pgdata-dev:
+    name: jewellery-ecommerce-pgdata-dev
+  jewellery-ecommerce-redisdata-dev:
+    name: jewellery-ecommerce-redisdata-dev

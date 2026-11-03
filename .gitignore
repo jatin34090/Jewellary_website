@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.next/
+out/
+*.tsbuildinfo
+
+# Turborepo cache
+.turbo/
+
+# Tests and coverage
+coverage/
+
+# Environment and secrets (never commit real values)
+.env
+.env.*
+!.env.example
+
+# Local Docker data (volumes live in Docker, not in the repo)
+.docker-data/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editors and OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
