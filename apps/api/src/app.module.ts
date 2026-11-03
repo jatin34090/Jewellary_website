@@ -10,9 +10,16 @@ import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 import { ResponseInterceptor } from "./common/response/response.interceptor";
 import { AuditModule } from "./modules/audit/audit.module";
 import { AuthModule } from "./modules/auth/auth.module";
+import { AddressesModule } from "./modules/addresses/addresses.module";
 import { CategoriesModule } from "./modules/categories/categories.module";
+import { CheckoutModule } from "./modules/checkout/checkout.module";
+import { CouponsModule } from "./modules/coupons/coupons.module";
+import { DashboardModule } from "./modules/dashboard/dashboard.controller";
 import { HealthModule } from "./modules/health/health.module";
+import { OrdersModule } from "./modules/orders/orders.module";
 import { ProductsModule } from "./modules/products/products.module";
+import { SettingsModule } from "./modules/settings/settings.module";
+import { UploadsModule } from "./modules/uploads/uploads.controller";
 import { UsersModule } from "./modules/users/users.module";
 import { PrismaModule } from "./prisma/prisma.module";
 
@@ -32,6 +39,13 @@ import { PrismaModule } from "./prisma/prisma.module";
     UsersModule,
     CategoriesModule,
     ProductsModule,
+    AddressesModule,
+    CouponsModule,
+    SettingsModule,
+    CheckoutModule,
+    OrdersModule,
+    UploadsModule,
+    DashboardModule,
   ],
   providers: [
     // Guards run in this order: rate limit, then authentication, then authorisation.

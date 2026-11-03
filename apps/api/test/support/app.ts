@@ -7,6 +7,7 @@ import type { Server } from "node:http";
 
 import { API_PREFIX, configureApp } from "../../src/app.setup";
 import { AppModule } from "../../src/app.module";
+import { PAYMENT_GATEWAY, type PaymentGateway } from "../../src/modules/payments/razorpay.client";
 import { loadDotEnvFile, loadEnv } from "../../src/config/env";
 
 export const API = `/${API_PREFIX}`;
@@ -27,13 +28,22 @@ export interface ApiBody<T> {
  * Boots the full application with the same HTTP configuration as production.
  * `trustProxy` is set so tests can give each request its own forwarded IP (see TestHttp).
  */
-export async function createTestContext(): Promise<TestContext> {
+export interface TestContextOptions {
+  /** Replaces the Razorpay gateway. Tests use this so no real payment call is made. */
+  gateway?: PaymentGateway;
+}
+
+export async function createTestContext(options: TestContextOptions = {}): Promise<TestContext> {
   loadDotEnvFile();
   const env = { ...loadEnv(), trustProxy: 1 };
   const prisma = createPrismaClient(env.databaseUrl, { maxConnections: 2 });
 
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
-  const app = moduleRef.createNestApplication<NestExpressApplication>();
+  let builder = Test.createTestingModule({ imports: [AppModule] });
+  if (options.gateway) {
+    builder = builder.overrideProvider(PAYMENT_GATEWAY).useValue(options.gateway);
+  }
+  const moduleRef = await builder.compile();
+  const app = moduleRef.createNestApplication<NestExpressApplication>({ rawBody: true });
   configureApp(app, env);
   await app.init();
 

@@ -9,6 +9,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
@@ -23,6 +24,7 @@ import { ListAdminProductsQueryDto } from "./dto/catalogue-query.dto";
 import {
   AddProductImageDto,
   CreateProductDto,
+  SetProductVideoDto,
   UpdateProductDto,
   UpdateProductImageDto,
 } from "./dto/product.dto";
@@ -110,6 +112,28 @@ export class AdminProductsController {
     @CurrentUser() actor: AuthenticatedUser,
   ): Promise<void> {
     return this.products.removeImage(id, imageId, actor.id);
+  }
+
+  @Put(":id/video")
+  @ApiOperation({
+    summary: "Attach a product video uploaded to Cloudinary (replaces any existing video)",
+  })
+  setVideo(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: SetProductVideoDto,
+    @CurrentUser() actor: AuthenticatedUser,
+  ): Promise<AdminProductView> {
+    return this.products.setVideo(id, dto, actor.id);
+  }
+
+  @Delete(":id/video")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: "Remove the product video" })
+  async removeVideo(
+    @Param("id", ParseUUIDPipe) id: string,
+    @CurrentUser() actor: AuthenticatedUser,
+  ): Promise<void> {
+    await this.products.removeVideo(id, actor.id);
   }
 
   @Get(":id/inventory")

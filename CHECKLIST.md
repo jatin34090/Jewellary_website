@@ -74,21 +74,41 @@ Status key: `[x]` done · `[ ]` pending · `[~]` partially done
 
 ## Phase 5 — Checkout and orders
 
-- [ ] Address management
-- [ ] Order creation
-- [ ] Inventory reservation
-- [ ] Razorpay integration
-- [ ] Payment verification and webhook signature check
-- [ ] Shiprocket integration
+- [x] Addresses: saved per customer, PIN and mobile validation, one default, snapshot copied into each order
+- [x] Pricing on the server only: totals and stock are computed from database prices, client prices are ignored
+- [x] Coupons: validity window, usage limit, minimum order, percentage cap, applied at checkout
+- [x] Shipping and tax rules: stored settings with explicit defaults of zero until you configure them
+- [x] Order creation: stock is reserved atomically, the same Idempotency-Key always returns the same order
+- [x] Razorpay: order creation, checkout signature verification (constant-time HMAC), webhook signature verification, duplicate webhook detection, amount check
+- [x] Duplicate payment protection: guarded status transitions, one payment per gateway order, reserved stock converted to sales once
+- [x] Unpaid orders are cancelled after the reservation window (default 30 minutes) and their stock and coupon use are released
+- [x] Shiprocket: login, courier order creation, AWB assignment, retries for failed bookings
+- [x] Order tracking for the customer (status, courier, tracking link)
+- [x] Storefront: sign in, register, account, address book, checkout with Razorpay Checkout, order confirmation and detail
+- [x] Tests: 20 checkout, payment, webhook, expiry and address tests against the real database (Razorpay replaced by a test gateway)
+- [ ] Live Razorpay test payment (needs RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET, then a test-mode payment)
+- [ ] Live Shiprocket booking (needs SHIPROCKET credentials and a pickup location)
+- [ ] Refunds (cancelling a paid order returns its stock, but the refund is still done in the Razorpay dashboard)
+- [ ] Guest checkout (checkout requires sign-in for now)
+- [ ] Server-side bag for signed-in customers (the bag is in the browser until then)
 
 ## Phase 6 — Admin dashboard
 
-- [ ] Product management
-- [ ] Category management
-- [ ] Order management
-- [ ] Inventory management
-- [ ] Store configuration
-- [ ] Banner management
+- [x] Admin sign-in with role checks (admin and staff; customers are redirected to their account)
+- [x] Dashboard: live products, 30-day orders and revenue, awaiting-payment count, low stock, recent orders
+- [x] Products: list with search and filters, create, edit, live or draft status, featured flag
+- [x] Product photos: direct upload to Cloudinary using a signed request, main photo selection, removal
+- [x] Product video: upload with progress, preview with poster frame, replace and remove (needs Cloudinary keys)
+- [x] Categories: create, nested placement, delete (blocked while subcategories exist)
+- [x] Inventory: stock levels, set or adjust with a reason, every change in the audit log
+- [x] Orders: list with status filter, detail with customer and courier, status changes that follow the allowed rules
+- [x] Coupons: create, pause and resume, usage counts
+- [ ] Store settings: brand name, logo, favicon, theme colours, contact details, social links
+- [ ] Homepage banners and sections
+- [ ] Shipping and tax settings screen (values are stored and used; no screen yet)
+- [ ] Customers list
+- [ ] Analytics beyond the dashboard summary
+- [ ] Cloudinary upload live test (needs CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET)
 
 ## Phase 7 — Performance and security
 

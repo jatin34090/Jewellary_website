@@ -11,6 +11,10 @@ import { AuditService } from "../audit/audit.service";
 import { PRISMA } from "../../prisma/prisma.module";
 import { slugify } from "../../common/utils/slug";
 import { withoutUndefined } from "../../common/utils/defined";
+import { INTEGRATIONS } from "../../config/config.module";
+import type { Integrations } from "../../config/integrations";
+import { isCloudinaryUrl } from "../uploads/cloudinary";
+import type { SetProductVideoDto } from "./dto/product.dto";
 import type {
   AddProductImageDto,
   CreateProductDto,
@@ -31,6 +35,7 @@ export interface AdminProductPage {
 export class AdminProductsService {
   constructor(
     @Inject(PRISMA) private readonly prisma: AppPrismaClient,
+    @Inject(INTEGRATIONS) private readonly integrations: Integrations,
     private readonly audit: AuditService,
   ) {}
 
@@ -316,6 +321,63 @@ export class AdminProductsService {
         tx,
       );
     });
+  }
+
+  /** Attaches a product video (already uploaded to Cloudinary). Replaces any existing video. */
+  async setVideo(
+    productId: string,
+    dto: SetProductVideoDto,
+    actorId: string,
+  ): Promise<AdminProductView> {
+    await this.assertProductExists(productId);
+    if (!isCloudinaryUrl(dto.url, this.integrations.cloudinary?.cloudName)) {
+      throw new BadRequestException("The video must be hosted on your Cloudinary account");
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.product.update({
+        where: { id: productId },
+        data: { videoUrl: dto.url, videoPublicId: dto.publicId },
+      });
+      await this.audit.record(
+        {
+          actorId,
+          action: "product.video_set",
+          entityType: "Product",
+          entityId: productId,
+          changes: { publicId: dto.publicId },
+        },
+        tx,
+      );
+    });
+    return this.get(productId);
+  }
+
+  /** Detaches the video. Returns the Cloudinary public id so the asset can be removed from storage. */
+  async removeVideo(productId: string, actorId: string): Promise<string | null> {
+    const product = await this.prisma.product.findFirst({
+      where: { id: productId, deletedAt: null },
+      select: { videoPublicId: true },
+    });
+    if (!product) throw new NotFoundException("Product not found");
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.product.update({
+        where: { id: productId },
+        data: { videoUrl: null, videoPublicId: null },
+      });
+      await this.audit.record(
+        {
+          actorId,
+          action: "product.video_removed",
+          entityType: "Product",
+          entityId: productId,
+          changes: { publicId: product.videoPublicId },
+        },
+        tx,
+      );
+    });
+    return product.videoPublicId;
   }
 
   private async assertProductExists(productId: string): Promise<void> {

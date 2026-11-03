@@ -3,7 +3,7 @@ import "server-only";
 // Server-side API client. Pages and server components use this. Browser code uses browser-client.ts,
 // so the two entry points cannot be mixed up by accident.
 
-import { API_BASE_URL } from "./base-url";
+import { SERVER_API_BASE_URL } from "./base-url";
 import { ApiError } from "./errors";
 
 interface SuccessEnvelope<T> {
@@ -26,7 +26,7 @@ export interface FetchOptions {
  * Throws ApiError for HTTP or envelope errors. Use apiGetOrNull() when a 404 is an expected outcome.
  */
 export async function apiGet<T>(path: string, options: FetchOptions = {}): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${SERVER_API_BASE_URL}${path}`, {
     headers: { Accept: "application/json" },
     next: { revalidate: options.revalidate ?? 60 },
   });

@@ -14,7 +14,8 @@ async function bootstrap(): Promise<void> {
   loadDotEnvFile();
   const env = loadEnv();
 
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // rawBody keeps the unparsed request body, which webhook signature checks need.
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
   configureApp(app, env);
 
   if (env.swaggerEnabled) {

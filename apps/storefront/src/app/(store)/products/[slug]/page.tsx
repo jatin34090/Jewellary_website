@@ -97,7 +97,19 @@ export default async function ProductPage({ params }: { params: Params }) {
       </nav>
 
       <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
-        <ImageGallery images={product.images} name={product.name} />
+        <div className="grid gap-6">
+          <ImageGallery images={product.images} name={product.name} />
+          {product.video ? (
+            <video
+              controls
+              preload="metadata"
+              poster={product.video.posterUrl ?? undefined}
+              src={product.video.url}
+              aria-label={"Video of "}
+              className="aspect-video w-full rounded-md bg-sand"
+            />
+          ) : null}
+        </div>
 
         <div className="flex flex-col">
           {product.categories.length > 0 ? (

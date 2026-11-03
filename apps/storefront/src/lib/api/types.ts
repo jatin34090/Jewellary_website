@@ -26,6 +26,7 @@ export interface ProductDetail extends ProductSummary {
   sku: string;
   description: string;
   weightGrams: string | null;
+  video: { url: string; posterUrl: string | null } | null;
   images: ProductImage[];
   categories: { id: string; name: string; slug: string }[];
   related: ProductSummary[];

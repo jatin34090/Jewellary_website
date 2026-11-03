@@ -130,3 +130,28 @@ The Cloudinary keys (`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_
 from your Cloudinary dashboard. The storefront reads its API address from `apps/storefront/.env.local`.
 Secrets must never be committed or printed in logs. The production secrets will be stored in
 GitHub Secrets and on the VPS, not in the repository.
+
+## Payments, shipping and media
+
+Keys live in `.env` (blank until you add them). The API starts without them. Checkout then says which service is not configured.
+
+- **Razorpay (test mode first):** `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`. In the Razorpay dashboard, point the webhook at `https://<api-domain>/api/v1/webhooks/razorpay` and subscribe to `payment.captured` and `payment.failed`.
+- **Shiprocket:** `SHIPROCKET_EMAIL`, `SHIPROCKET_PASSWORD`, `SHIPROCKET_PICKUP_LOCATION`. Paid orders are booked automatically, and failed bookings are retried.
+- **Cloudinary:** `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`. Uploads go straight from the browser to Cloudinary with a signed request, so the API secret never leaves the server.
+- **Checkout timing:** `ORDER_RESERVATION_MINUTES` (default 30). Unpaid orders past this are cancelled and their stock released.
+
+Checkout does not charge anything until the Razorpay keys are set. Use Razorpay test keys until you approve going live.
+
+## Admin panel
+
+Open `http://localhost:3000/admin`. Signed-out visitors see the sign-in form on that page. Staff and admin accounts are normal accounts with a role.
+
+Create the first admin after registering through the storefront:
+
+```bash
+docker exec -i jewellery-ecommerce-postgres-dev psql -U jewellery -d jewellery -c "UPDATE \"User\" SET role = 'ADMIN' WHERE email = 'you@example.com';"
+```
+
+## Database migrations: a warning
+
+The `searchVector` column and its GIN index are maintained by a hand-written migration, because Prisma cannot model generated `tsvector` columns. When you run `pnpm db:migrate`, Prisma may propose dropping them. Remove those statements from the new migration before you apply it, or full-text search breaks.

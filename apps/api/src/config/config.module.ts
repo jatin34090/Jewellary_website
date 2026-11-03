@@ -1,8 +1,10 @@
 import { Global, Module } from "@nestjs/common";
 
 import { loadEnv, type Env } from "./env";
+import { loadIntegrations, type Integrations } from "./integrations";
 
 export const ENV = Symbol("ENV");
+export const INTEGRATIONS = Symbol("INTEGRATIONS");
 
 @Global()
 @Module({
@@ -11,7 +13,11 @@ export const ENV = Symbol("ENV");
       provide: ENV,
       useFactory: (): Env => loadEnv(),
     },
+    {
+      provide: INTEGRATIONS,
+      useFactory: (): Integrations => loadIntegrations(),
+    },
   ],
-  exports: [ENV],
+  exports: [ENV, INTEGRATIONS],
 })
 export class ConfigModule {}

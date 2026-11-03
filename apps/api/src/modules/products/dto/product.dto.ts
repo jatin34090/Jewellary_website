@@ -121,8 +121,9 @@ export class UpdateProductDto extends PartialType(
 ) {}
 
 export class AddProductImageDto {
-  @ApiProperty({ format: "uri", description: "HTTPS URL of the image (Cloudinary delivery URL)." })
+  @ApiProperty({ format: "uri", description: "Cloudinary delivery URL of the image." })
   @IsUrl({ protocols: ["https"], require_protocol: true })
+  @Matches(/^https:\/\/res\.cloudinary\.com\//, { message: "url must be a Cloudinary image URL" })
   @Length(1, 500)
   url!: string;
 
@@ -154,3 +155,21 @@ export class AddProductImageDto {
 }
 
 export class UpdateProductImageDto extends PartialType(AddProductImageDto) {}
+
+export class SetProductVideoDto {
+  @ApiProperty({
+    format: "uri",
+    description: "Cloudinary delivery URL of the video (mp4, mov or webm).",
+  })
+  @IsUrl({ protocols: ["https"], require_protocol: true })
+  @Matches(/^https:\/\/res\.cloudinary\.com\/.+\/video\/upload\/.+\.(mp4|mov|webm)$/i, {
+    message: "url must be a Cloudinary video URL",
+  })
+  @Length(1, 500)
+  url!: string;
+
+  @ApiProperty({ description: "Cloudinary public id of the video." })
+  @IsString()
+  @Length(1, 255)
+  publicId!: string;
+}

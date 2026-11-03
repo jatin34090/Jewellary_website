@@ -77,13 +77,12 @@ export function BagView() {
         <div className="mt-6 border-t border-line pt-4 text-xs text-muted">
           Prices and stock are checked again when you place your order.
         </div>
-        <button
-          type="button"
-          disabled
-          className="mt-6 w-full rounded bg-brown px-6 py-3.5 text-sm tracking-[0.15em] text-cream uppercase opacity-50"
+        <Link
+          href="/checkout"
+          className="mt-6 flex w-full items-center justify-center rounded bg-brown px-6 py-3.5 text-sm tracking-[0.15em] text-cream uppercase transition-colors hover:bg-brown-soft"
         >
-          Checkout (coming soon)
-        </button>
+          Proceed to checkout
+        </Link>
         <Link
           href="/shop"
           className="mt-4 block text-center text-sm text-brown-soft underline-offset-4 hover:underline"

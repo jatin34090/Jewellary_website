@@ -1,6 +1,7 @@
 import type { Prisma } from "@jewellery/database";
 
 import { stockStatus, type StockStatus } from "../inventory/stock-status";
+import { videoPosterUrl } from "../uploads/cloudinary";
 
 /**
  * Prisma include definitions and response mappers. Keeping them together means every product
@@ -60,6 +61,7 @@ export interface PublicProductDetail extends PublicProductSummary {
   sku: string;
   description: string;
   weightGrams: string | null;
+  video: { url: string; posterUrl: string | null } | null;
   images: { url: string; altText: string | null; isPrimary: boolean }[];
   categories: { id: string; name: string; slug: string }[];
   related: PublicProductSummary[];
@@ -78,6 +80,8 @@ export interface AdminProductView {
   material: string | null;
   isFeatured: boolean;
   salesCount: number;
+  videoUrl: string | null;
+  videoPublicId: string | null;
   categories: { id: string; name: string; slug: string }[];
   images: {
     id: string;
@@ -142,6 +146,7 @@ export function toPublicDetail(
     sku: row.sku,
     description: row.description,
     weightGrams: row.weightGrams ? row.weightGrams.toFixed(2) : null,
+    video: row.videoUrl ? { url: row.videoUrl, posterUrl: videoPosterUrl(row.videoUrl) } : null,
     images: row.images.map((image) => ({
       url: image.url,
       altText: image.altText,
@@ -169,6 +174,8 @@ export function toAdminView(row: AdminRow): AdminProductView {
     material: row.material,
     isFeatured: row.isFeatured,
     salesCount: row.salesCount,
+    videoUrl: row.videoUrl,
+    videoPublicId: row.videoPublicId,
     categories: row.categories.map((link) => link.category),
     images: row.images,
     inventory: row.inventory

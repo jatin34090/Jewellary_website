@@ -1,7 +1,7 @@
 "use client";
 
-// Browser-side API calls, used by client components (load more, bag and wishlist refresh).
-// Requests are not cached by Next; the browser's own HTTP cache applies.
+// Browser-side API calls for public data (load more, bag and wishlist refresh).
+// Signed-in calls go through lib/session/session.ts, which adds the bearer token.
 
 import { API_BASE_URL } from "./base-url";
 import { ApiError } from "./errors";
@@ -16,17 +16,29 @@ interface ErrorEnvelope {
   error: { code: string; message: string };
 }
 
-export async function browserGet<T>(path: string): Promise<T> {
+export function browserGet<T>(path: string): Promise<T> {
+  return browserRequest<T>(path, "GET");
+}
+
+export function browserPost<T>(path: string, body: unknown): Promise<T> {
+  return browserRequest<T>(path, "POST", body);
+}
+
+async function browserRequest<T>(path: string, method: "GET" | "POST", body?: unknown): Promise<T> {
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (body !== undefined) headers["Content-Type"] = "application/json";
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { Accept: "application/json" },
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : null,
     cache: "no-store",
   });
-  const body = (await response.json().catch(() => null)) as
+  const payload = (await response.json().catch(() => null)) as
     SuccessEnvelope<T> | ErrorEnvelope | null;
 
-  if (!response.ok || !body || !body.success) {
-    const error = body && !body.success ? body.error : undefined;
+  if (!response.ok || !payload || !payload.success) {
+    const error = payload && !payload.success ? payload.error : undefined;
     throw new ApiError(response.status, error?.code ?? "ERROR", error?.message ?? "Request failed");
   }
-  return body.data;
+  return payload.data;
 }
