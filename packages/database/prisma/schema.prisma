@@ -176,20 +176,22 @@ model Category {
 }
 
 model Product {
-  id             String        @id @default(uuid(7)) @db.Uuid
-  sku            String        @unique @db.VarChar(64)
-  slug           String        @unique @db.VarChar(255)
-  name           String        @db.VarChar(255)
+  id             String                   @id @default(uuid(7)) @db.Uuid
+  sku            String                   @unique @db.VarChar(64)
+  slug           String                   @unique @db.VarChar(255)
+  name           String                   @db.VarChar(255)
   description    String
-  status         ProductStatus @default(DRAFT)
-  price          Decimal       @db.Decimal(12, 2)
-  compareAtPrice Decimal?      @db.Decimal(12, 2) // original price shown struck-through when discounted
-  weightGrams    Decimal?      @db.Decimal(8, 2)
-  material       String?       @db.VarChar(100)
-  isFeatured     Boolean       @default(false)
-  salesCount     Int           @default(0) // denormalised counter that drives "best sellers"
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  status         ProductStatus            @default(DRAFT)
+  price          Decimal                  @db.Decimal(12, 2)
+  compareAtPrice Decimal?                 @db.Decimal(12, 2) // original price shown struck-through when discounted
+  weightGrams    Decimal?                 @db.Decimal(8, 2)
+  material       String?                  @db.VarChar(100)
+  isFeatured     Boolean                  @default(false)
+  salesCount     Int                      @default(0) // denormalised counter that drives "best sellers"
+  // Generated column maintained by PostgreSQL (see the add_catalogue_search migration). Not written by the app.
+  searchVector   Unsupported("tsvector")?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
   deletedAt      DateTime?
 
   images        ProductImage[]

@@ -81,7 +81,10 @@ pnpm db:migrate      # create and apply a migration after changing schema.prisma
 pnpm db:deploy       # apply committed migrations only (used in CI and production)
 pnpm db:generate     # regenerate the Prisma client
 
-pnpm --filter @jewellery/api dev    # API in watch mode, http://127.0.0.1:3001
+pnpm db:seed         # add the six brand categories (safe to run again)
+
+pnpm --filter @jewellery/api dev          # API in watch mode, http://127.0.0.1:3001
+pnpm --filter @jewellery/storefront dev   # storefront, http://localhost:3000
 pnpm --filter @jewellery/api test   # API unit and end-to-end tests (needs infra:up)
 pnpm lint            # ESLint across all packages
 pnpm typecheck       # TypeScript strict type checking
@@ -97,6 +100,8 @@ pnpm format:check    # check formatting without changing files
 - Swagger UI: `http://127.0.0.1:3001/api/v1/docs` (enabled by `SWAGGER_ENABLED=true`, off in production)
 - Health: `GET /api/v1/health/live` (process up), `GET /api/v1/health` (database reachable)
 - Auth: `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout`
+- Catalogue (public): `GET /api/v1/categories`, `GET /api/v1/categories/:slug`, `GET /api/v1/products` (filters: `q`, `category`, `minPrice`, `maxPrice`, `featured`, `sort`, `limit`, `cursor`), `GET /api/v1/products/:slug`
+- Catalogue (admin, `ADMIN` or `STAFF`): `/api/v1/admin/categories`, `/api/v1/admin/products`, `/api/v1/admin/products/:id/images`, `/api/v1/admin/products/:id/inventory`
 - Every response is wrapped: `{ "success": true, "data": ... }` or `{ "success": false, "error": { "code", "message", "details?" } }`.
 - Access tokens (15 min) go in `Authorization: Bearer <token>`. The refresh token is an HttpOnly cookie scoped to `/api/v1/auth`.
 
@@ -121,5 +126,7 @@ Keep those rules when you edit related tables.
 ## Environment variables
 
 All configuration comes from environment variables. `.env.example` documents every variable.
+The Cloudinary keys (`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`) are blank in `.env`. Fill them in
+from your Cloudinary dashboard. The storefront reads its API address from `apps/storefront/.env.local`.
 Secrets must never be committed or printed in logs. The production secrets will be stored in
 GitHub Secrets and on the VPS, not in the repository.

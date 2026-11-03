@@ -8,8 +8,11 @@ import { JwtAuthGuard } from "./common/auth/jwt-auth.guard";
 import { RolesGuard } from "./common/auth/roles.guard";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 import { ResponseInterceptor } from "./common/response/response.interceptor";
+import { AuditModule } from "./modules/audit/audit.module";
 import { AuthModule } from "./modules/auth/auth.module";
+import { CategoriesModule } from "./modules/categories/categories.module";
 import { HealthModule } from "./modules/health/health.module";
+import { ProductsModule } from "./modules/products/products.module";
 import { UsersModule } from "./modules/users/users.module";
 import { PrismaModule } from "./prisma/prisma.module";
 
@@ -24,8 +27,11 @@ import { PrismaModule } from "./prisma/prisma.module";
     }),
     JwtModule.register({}),
     HealthModule,
+    AuditModule,
     AuthModule,
     UsersModule,
+    CategoriesModule,
+    ProductsModule,
   ],
   providers: [
     // Guards run in this order: rate limit, then authentication, then authorisation.

@@ -40,20 +40,37 @@ Status key: `[x]` done · `[ ]` pending · `[~]` partially done
 
 ## Phase 3 — Product catalogue
 
-- [ ] Categories
-- [ ] Products
-- [ ] Product images
-- [ ] Inventory
-- [ ] Search and cursor pagination
+- [x] Categories: admin CRUD, nested tree in one query, cycle-safe re-parenting, soft delete blocked while subcategories exist
+- [x] Products: admin CRUD with category assignment, auto slugs, SKU uniqueness, compare-at price rule, soft delete (archive)
+- [x] Product images: metadata for uploaded assets (URL and Cloudinary public id), primary image management, promotion when the primary is removed
+- [x] Inventory: set and adjust with audit log, stock can't go negative or below reserved units, shoppers see IN_STOCK / LOW_STOCK / OUT_OF_STOCK only
+- [x] Search: PostgreSQL full-text (generated `tsvector`, GIN index, English stemming, weighted columns)
+- [x] Cursor pagination (keyset) for the storefront; offset pagination for the admin list
+- [x] Public filters: category, price range, featured, sort by newest / price / best selling
+- [x] Tests: 46 passing across auth, catalogue and DB constraints
+- [ ] Cloudinary upload (needs account credentials and your approval, Phase 5/6)
+- [ ] Category filter includes subcategories (currently only direct assignments)
+- [ ] Clearing a compare-at price via the API (currently only setting a new value)
+- [ ] Product variants such as ring sizes (needs a design decision before Phase 5)
 
 ## Phase 4 — Storefront
 
-- [ ] Next.js App Router setup (`apps/storefront`)
-- [ ] Homepage
-- [ ] Product listing
-- [ ] Product detail
-- [ ] Responsive design
-- [ ] Cart and wishlist
+- [x] Next.js 16 App Router setup (`apps/storefront`), React 19, Tailwind CSS 4, server components by default
+- [x] Brand theme from the VRINOOR reference: brown, cream and gold palette, Georgia headings, same tone (built on our API, not Supabase)
+- [x] Homepage: hero, shop by category, featured, new arrivals, best sellers (hidden when empty), "Why VRINOOR"
+- [x] Product listing: category, search, price range, featured, sort, "Load more" (cursor)
+- [x] Product detail: image gallery with hover and tap zoom, price and discount, stock status, SKU, description, related products, JSON-LD for search engines
+- [x] Responsive: checked at 375px (no horizontal overflow) and desktop
+- [x] Bag and wishlist: kept in the browser, prices and stock refreshed from the API on view
+- [x] Unit tests for money, bag and wishlist logic (12 passing)
+- [x] Brand categories seeded (`pnpm db:seed`)
+- [ ] Bag and wishlist on the server for signed-in customers (with accounts and checkout, Phase 5)
+- [ ] Checkout, Razorpay, Shiprocket (Phase 5)
+- [ ] Brand logo, favicon and homepage banners from admin store settings (Phase 6). Hero copy is fixed for now.
+- [ ] Storefront images use Cloudinary URLs. Upload endpoints arrive with Cloudinary credentials (Phase 5/6).
+- [ ] Shared API rate limit: server rendering calls the API from one IP, so the limit must be raised or moved to Redis (Phase 7)
+- [ ] Load-more paging and empty states checked with 24+ products (only 4 test products were available)
+- [ ] Product detail is not cached in Next yet (fresh on every request, so archived products return a real 404). Add API-side caching in Phase 7.
 
 ## Phase 5 — Checkout and orders
 
