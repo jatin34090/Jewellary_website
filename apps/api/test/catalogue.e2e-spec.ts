@@ -134,7 +134,7 @@ describe("Catalogue and admin catalogue API", () => {
       await ctx.prisma.product.deleteMany({ where: { id: { in: createdProductIds } } });
       await ctx.prisma.category.deleteMany({ where: { id: { in: createdCategoryIds } } });
       await ctx.prisma.user.deleteMany({
-        where: { email: { startsWith: "e2e-", endsWith: "@example.com" } },
+        where: { email: { contains: RUN, endsWith: "@example.com" } },
       });
       await ctx.prisma.$disconnect();
       await ctx.app.close();
@@ -225,6 +225,28 @@ describe("Catalogue and admin catalogue API", () => {
           adminToken,
         )
         .expect(400);
+    });
+
+    it("clears the compare-at price when the admin sends null", async () => {
+      const product = await createProduct(ctx, adminToken, {
+        sku: `E2E-${RUN}-CLR`,
+        name: "Clearable",
+        slug: `clearable-${RUN}`,
+        price: "400.00",
+        compareAtPrice: "500.00",
+        status: "ACTIVE",
+      });
+      createdProductIds.push(product.id);
+
+      const res = await ctx.http
+        .patch(`${API}/admin/products/${product.id}`, { compareAtPrice: null }, adminToken)
+        .expect(200);
+      expect(
+        (res.body as ApiBody<{ compareAtPrice: string | null }>).data.compareAtPrice,
+      ).toBeNull();
+
+      const shown = await ctx.http.get(`${API}/products/clearable-${RUN}`).expect(200);
+      expect((shown.body as ApiBody<ProductDetail>).data.discountPercent).toBeNull();
     });
 
     it("rejects a duplicate SKU with 409 (SKUs are case-insensitive)", async () => {
@@ -399,11 +421,98 @@ describe("Catalogue and admin catalogue API", () => {
     it("returns 404 for a draft product", async () => {
       await ctx.http.get(`${API}/products/${SLUG.draft}`).expect(404);
     });
+
+    it("includes products in subcategories when filtering by a parent category", async () => {
+      const parent = await createCategory(ctx, adminToken, `Tree Parent ${RUN}`);
+      createdCategoryIds.push(parent.id);
+      const child = await createCategory(ctx, adminToken, `Tree Child ${RUN}`, parent.id);
+      createdCategoryIds.push(child.id);
+      const product = await createProduct(ctx, adminToken, {
+        sku: `E2E-${RUN}-TREE`,
+        name: "Tree Product",
+        slug: `tree-product-${RUN}`,
+        price: "300.00",
+        status: "ACTIVE",
+        initialStock: 1,
+        categoryIds: [child.id],
+      });
+      createdProductIds.push(product.id);
+
+      const underParent = await ctx.http
+        .get(`${API}/products?category=${parent.slug}&limit=50`)
+        .expect(200);
+      const parentSlugs = (underParent.body as ApiBody<ProductPage>).data.items.map((i) => i.slug);
+      expect(parentSlugs).toContain(`tree-product-${RUN}`);
+
+      const underChild = await ctx.http
+        .get(`${API}/products?category=${child.slug}&limit=50`)
+        .expect(200);
+      const childSlugs = (underChild.body as ApiBody<ProductPage>).data.items.map((i) => i.slug);
+      expect(childSlugs).toEqual([`tree-product-${RUN}`]);
+    });
+
+    it("returns every product across pages for a category with more than 24 products", async () => {
+      const bulk = await createCategory(ctx, adminToken, `Bulk ${RUN}`);
+      createdCategoryIds.push(bulk.id);
+      for (let i = 1; i <= 24; i += 1) {
+        const product = await createProduct(ctx, adminToken, {
+          sku: `E2E-${RUN}-BULK-${String(i).padStart(2, "0")}`,
+          name: `Bulk Product ${i}`,
+          slug: `bulk-product-${RUN}-${String(i).padStart(2, "0")}`,
+          price: `${100 + i}.00`,
+          status: "ACTIVE",
+          initialStock: 3,
+          categoryIds: [bulk.id],
+        });
+        createdProductIds.push(product.id);
+      }
+
+      const seen: string[] = [];
+      let cursor: string | null = null;
+      let pages = 0;
+      for (;;) {
+        const suffix: string = cursor ? `&cursor=${encodeURIComponent(cursor)}` : "";
+        const res: { body: unknown } = await ctx.http
+          .get(`${API}/products?category=${bulk.slug}&limit=10${suffix}`)
+          .expect(200);
+        const page: ProductPage = (res.body as ApiBody<ProductPage>).data;
+        seen.push(...page.items.map((item: ProductSummary) => item.slug));
+        pages += 1;
+        cursor = page.nextCursor;
+        if (!cursor || pages >= 10) break;
+      }
+
+      expect(pages).toBe(3);
+      expect(seen).toHaveLength(24);
+      expect(new Set(seen).size).toBe(24);
+    });
+
+    it("returns an empty list, not an error, for a category with no products", async () => {
+      const empty = await createCategory(ctx, adminToken, `Empty ${RUN}`);
+      createdCategoryIds.push(empty.id);
+
+      const res = await ctx.http.get(`${API}/products?category=${empty.slug}&limit=10`).expect(200);
+      const page = (res.body as ApiBody<ProductPage>).data;
+      expect(page.items).toEqual([]);
+      expect(page.nextCursor).toBeNull();
+    });
   });
 });
 
+async function createCategory(
+  ctx: TestContext,
+  token: string,
+  name: string,
+  parentId?: string,
+): Promise<CategoryData> {
+  const res = await ctx.http
+    .post(`${API}/admin/categories`, parentId ? { name, parentId } : { name }, token)
+    .expect(201);
+  return (res.body as ApiBody<CategoryData>).data;
+}
+
 async function signIn(ctx: TestContext, role: "CUSTOMER" | "ADMIN"): Promise<string> {
-  const email = `e2e-${role.toLowerCase()}-${randomUUID()}@example.com`;
+  const email = `e2e-${RUN}-${role.toLowerCase()}-${randomUUID()}@example.com`;
   const register = await ctx.http
     .post(`${API}/auth/register`, { email, password: PASSWORD, firstName: "Test" })
     .expect(201);

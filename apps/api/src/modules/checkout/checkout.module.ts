@@ -26,6 +26,6 @@ import { WebhooksController } from "../payments/webhooks.controller";
       useFactory: (integrations: Integrations) => gatewayFrom(integrations),
     },
   ],
-  exports: [PricingService, PaymentsService],
+  exports: [PricingService, PaymentsService, PAYMENT_GATEWAY],
 })
 export class CheckoutModule {}

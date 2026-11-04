@@ -164,7 +164,11 @@ export function CheckoutView() {
         handler: (response) => {
           void authorizedRequest<OrderConfirmation>("/checkout/payments/verify", {
             method: "POST",
-            body: response,
+            body: {
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            },
           })
             .then((confirmed) => {
               bagStore.update(() => []);

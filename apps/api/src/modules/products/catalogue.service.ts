@@ -75,13 +75,24 @@ export class CatalogueService {
       conditions.push(Prisma.sql`p."searchVector" @@ websearch_to_tsquery('english', ${query.q})`);
     }
     if (query.category) {
+      // The category and every active subcategory below it. UNION (not UNION ALL) stops the walk on any loop.
       conditions.push(Prisma.sql`EXISTS (
         SELECT 1 FROM "ProductCategory" pc
-        JOIN "Category" c ON c.id = pc."categoryId"
         WHERE pc."productId" = p.id
-          AND c.slug = ${query.category}
-          AND c."isActive" = true
-          AND c."deletedAt" IS NULL
+          AND pc."categoryId" IN (
+            WITH RECURSIVE category_tree AS (
+              SELECT c.id FROM "Category" c
+              WHERE c.slug = ${query.category}
+                AND c."isActive" = true
+                AND c."deletedAt" IS NULL
+              UNION
+              SELECT child.id FROM "Category" child
+              JOIN category_tree parent ON child."parentId" = parent.id
+              WHERE child."isActive" = true
+                AND child."deletedAt" IS NULL
+            )
+            SELECT id FROM category_tree
+          )
       )`);
     }
     if (query.minPrice) {

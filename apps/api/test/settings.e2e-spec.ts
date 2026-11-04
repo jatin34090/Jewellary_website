@@ -93,7 +93,7 @@ describe("Shipping, tax, store settings, banners and customers", () => {
     await ctx.prisma.auditLog.deleteMany({ where: { entityId: productId } });
     await ctx.prisma.product.deleteMany({ where: { id: productId } });
     await ctx.prisma.user.deleteMany({
-      where: { email: { startsWith: "e2e-settings-", endsWith: "@example.com" } },
+      where: { email: { contains: RUN, endsWith: "@example.com" } },
     });
     await ctx.prisma.$disconnect();
     await ctx.app.close();

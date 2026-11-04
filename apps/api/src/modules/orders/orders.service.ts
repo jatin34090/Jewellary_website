@@ -7,7 +7,7 @@ import { presentOrder, type OrderView } from "./order.presenter";
 
 const ORDER_INCLUDE = { items: true, shipments: true } as const;
 
-/** Admin status changes that are allowed. Refunds are handled in the Razorpay dashboard, not here. */
+/** Admin status changes that are allowed. Money is returned through the refunds endpoint, not here. */
 const ALLOWED_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus[]>> = {
   PAID: ["PROCESSING", "SHIPPED", "CANCELLED"],
   PROCESSING: ["SHIPPED", "CANCELLED"],

@@ -61,6 +61,34 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum RefundStatus {
+  PENDING
+  PROCESSED
+  FAILED
+}
+
+/// A refund issued through the payment provider. Several partial refunds can belong to one payment.
+model Refund {
+  id               String       @id @default(uuid(7)) @db.Uuid
+  paymentId        String       @db.Uuid
+  orderId          String       @db.Uuid
+  amount           Decimal      @db.Decimal(12, 2)
+  reason           String       @db.VarChar(255)
+  status           RefundStatus
+  providerRefundId String?      @unique @db.VarChar(64)
+  failureReason    String?      @db.VarChar(500)
+  createdById      String       @db.Uuid
+  createdAt        DateTime     @default(now())
+
+  // Composite key: the payment must belong to the same order as this refund.
+  payment   Payment @relation(fields: [orderId, paymentId], references: [orderId, id], onDelete: Restrict)
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  createdBy User    @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([paymentId])
+}
+
 enum ShipmentProvider {
   SHIPROCKET
 }
@@ -106,6 +134,7 @@ model User {
   reviews        Review[]
   auditLogs      AuditLog[]
   settingUpdates StoreSetting[]
+  refundsIssued  Refund[]
 
   @@index([role])
   @@index([deletedAt])
@@ -357,6 +386,7 @@ model Order {
   coupon    Coupon?     @relation(fields: [couponId], references: [id], onDelete: SetNull)
   items     OrderItem[]
   payments  Payment[]
+  refunds   Refund[]
   shipments Shipment[]
 
   @@index([userId, createdAt])
@@ -398,10 +428,13 @@ model Payment {
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
 
-  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  refunds Refund[]
 
   @@index([orderId])
   @@index([status, createdAt])
+  // Target for Refund's composite foreign key: a refund can only point at a payment of its own order.
+  @@unique([orderId, id])
 }
 
 /// Every inbound provider webhook is recorded once. A unique eventId makes redelivery a no-op.

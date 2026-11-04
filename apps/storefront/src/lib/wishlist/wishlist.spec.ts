@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { MAX_WISHLIST_ITEMS, parseWishlist, toggleWishlist } from "./wishlist";
+import { MAX_WISHLIST_ITEMS, mergeWishlists, parseWishlist, toggleWishlist } from "./wishlist";
+
+describe("mergeWishlists", () => {
+  it("keeps local order, then adds saved items the browser does not have", () => {
+    expect(mergeWishlists(["a-ring", "b-band"], ["b-band", "c-pendant"])).toEqual([
+      "a-ring",
+      "b-band",
+      "c-pendant",
+    ]);
+  });
+});
 
 describe("wishlist", () => {
   it("toggles a slug on and off", () => {

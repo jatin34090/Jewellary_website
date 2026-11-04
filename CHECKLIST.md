@@ -1,6 +1,14 @@
 # Project checklist
 
-Status key: `[x]` done · `[ ]` pending · `[~]` partially done
+Status key: `[x]` done · `[~]` partially done or not fully verified · `[ ]` pending
+
+Verification labels used below:
+
+- **Automated:** covered by a test in the repository and run against the isolated `jewellery_test` database (API) or the Vitest unit suite (storefront).
+- **Manual:** checked by hand in a browser or against live services. No repeatable evidence is recorded in the repository.
+- **Not verified:** no automated test or recorded evidence exists in the repository.
+
+Test counts shown in phase notes are historical, recorded at the end of that phase. The current suite is in [Verification notes](#verification-notes).
 
 ## Phase 1 — Environment inspection and project setup
 
@@ -32,9 +40,9 @@ Status key: `[x]` done · `[ ]` pending · `[~]` partially done
 - [x] Authentication: Argon2id hashing, short-lived access tokens, rotating refresh tokens in HttpOnly cookies, reuse detection, global guards, role-based authorisation
 - [x] Swagger documentation at `/api/v1/docs`
 - [x] Consistent success and error envelopes, DTO validation with whitelisting, rate limits on auth routes
-- [x] Tests: 22 passing (auth flows, token rotation and replay, mass-assignment protection, DB constraints, env validation, role guard)
+- [x] Tests: 22 passing at the end of Phase 2 (auth flows, token rotation and replay, mass-assignment protection, DB constraints, env validation, role guard). Automated. Historical count.
 - [ ] Redis-backed rate limit storage (Phase 7)
-- [ ] Admin bootstrap / seed script (Phase 6)
+- [x] Admin bootstrap script: `pnpm --filter @jewellery/api admin:create`. Reads ADMIN_EMAIL and ADMIN_PASSWORD from the environment and promotes an existing account. It also reads the root `.env` if present, so set `DATABASE_URL` in the shell to choose the target database. Manual: run once against the development database.
 - [ ] Account lockout after repeated failed logins (Phase 7)
 - [ ] Email verification and password reset (Phase 7, with the notifications worker)
 
@@ -47,11 +55,11 @@ Status key: `[x]` done · `[ ]` pending · `[~]` partially done
 - [x] Search: PostgreSQL full-text (generated `tsvector`, GIN index, English stemming, weighted columns)
 - [x] Cursor pagination (keyset) for the storefront; offset pagination for the admin list
 - [x] Public filters: category, price range, featured, sort by newest / price / best selling
-- [x] Tests: 46 passing across auth, catalogue and DB constraints
-- [ ] Cloudinary upload (needs account credentials and your approval, Phase 5/6)
-- [ ] Category filter includes subcategories (currently only direct assignments)
-- [ ] Clearing a compare-at price via the API (currently only setting a new value)
-- [ ] Product variants such as ring sizes (needs a design decision before Phase 5)
+- [x] Tests: 46 passing across auth, catalogue and DB constraints at the end of Phase 3. Automated. Historical count.
+- [~] Cloudinary upload: signed upload flow is implemented. A live upload of one image was reported during development. No automated test calls Cloudinary, and video upload is not verified end to end.
+- [x] Category filter includes subcategories (recursive tree, cycle-safe). Automated: catalogue suite, "includes products in subcategories".
+- [x] Clearing a compare-at price via the API (send `compareAtPrice: null`). Automated: catalogue suite.
+- [ ] Product variants such as ring sizes (needs a design decision before Phase 5). See [Deferred engineering work](#deferred-engineering-work).
 
 ## Phase 4 — Storefront
 
@@ -62,14 +70,14 @@ Status key: `[x]` done · `[ ]` pending · `[~]` partially done
 - [x] Product detail: image gallery with hover and tap zoom, price and discount, stock status, SKU, description, related products, JSON-LD for search engines
 - [x] Responsive: checked at 375px (no horizontal overflow) and desktop
 - [x] Bag and wishlist: kept in the browser, prices and stock refreshed from the API on view
-- [x] Unit tests for money, bag and wishlist logic (12 passing)
+- [x] Unit tests for money, bag and wishlist logic (12 passing at the end of Phase 4; the storefront suite now has 16 tests). Automated. Historical count.
 - [x] Brand categories seeded (`pnpm db:seed`)
-- [ ] Bag and wishlist on the server for signed-in customers (with accounts and checkout, Phase 5)
+- [~] Bag and wishlist on the server for signed-in customers. API: 8 automated tests (saves and merges lines, drops unknown and archived products, per-customer isolation, limits). The merge helpers are unit tested. The browser sync client, sign-in merge and sign-out clearing are not covered by automated tests.
 - [ ] Checkout, Razorpay, Shiprocket (Phase 5)
-- [ ] Brand logo, favicon and homepage banners from admin store settings (Phase 6). Hero copy is fixed for now.
-- [ ] Storefront images use Cloudinary URLs. Upload endpoints arrive with Cloudinary credentials (Phase 5/6).
+- [x] Brand logo, favicon and homepage banners from admin store settings (Phase 6). Hero copy is fixed for now.
+- [~] Storefront images use Cloudinary URLs. Upload works; the seeded catalogue has no photos yet, so this is not checked on real product photos.
 - [ ] Shared API rate limit: server rendering calls the API from one IP, so the limit must be raised or moved to Redis (Phase 7)
-- [ ] Load-more paging and empty states checked with 24+ products (only 4 test products were available)
+- [~] Load-more paging across more than 24 products: automated API test (24 products read across cursor pages with no duplicates). A browser check with 26 products is not recorded in the repository and is not claimed here.
 - [ ] Product detail is not cached in Next yet (fresh on every request, so archived products return a real 404). Add API-side caching in Phase 7.
 
 ## Phase 5 — Checkout and orders
@@ -79,18 +87,19 @@ Status key: `[x]` done · `[ ]` pending · `[~]` partially done
 - [x] Coupons: validity window, usage limit, minimum order, percentage cap, applied at checkout
 - [x] Shipping and tax rules: stored settings with explicit defaults of zero until you configure them
 - [x] Order creation: stock is reserved atomically, the same Idempotency-Key always returns the same order
-- [x] Razorpay: order creation, checkout signature verification (constant-time HMAC), webhook signature verification, duplicate webhook detection, amount check
-- [x] Duplicate payment protection: guarded status transitions, one payment per gateway order, reserved stock converted to sales once
-- [x] Unpaid orders are cancelled after the reservation window (default 30 minutes) and their stock and coupon use are released
-- [x] Shiprocket: login, courier order creation, AWB assignment, retries for failed bookings
+- [x] Razorpay: order creation, checkout signature verification (constant-time HMAC), webhook signature verification, duplicate webhook detection, amount check. Automated with a test gateway.
+- [~] Checkout verification confirms each payment with Razorpay before the order is marked paid: the payment's order ID, amount, and status (captured or authorized) are read back from Razorpay. Automated tests use a fake gateway. No test covers a payment with a mismatched order ID or an unexpected status.
+- [x] Duplicate payment protection: guarded status transitions, one payment per gateway order, reserved stock converted to sales once. Automated.
+- [x] Unpaid orders are cancelled after the reservation window (default 30 minutes) and their stock and coupon use are released. Automated.
+- [~] Shiprocket: login and courier order creation were reported working during development. AWB assignment is blocked until the Shiprocket wallet is recharged (minimum Rs 100). Not verified end to end.
 - [x] Order tracking for the customer (status, courier, tracking link)
 - [x] Storefront: sign in, register, account, address book, checkout with Razorpay Checkout, order confirmation and detail
-- [x] Tests: 20 checkout, payment, webhook, expiry and address tests against the real database (Razorpay replaced by a test gateway)
-- [ ] Live Razorpay test payment (needs RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET, then a test-mode payment)
-- [ ] Live Shiprocket booking (needs SHIPROCKET credentials and a pickup location)
-- [ ] Refunds (cancelling a paid order returns its stock, but the refund is still done in the Razorpay dashboard)
+- [x] Tests: 20 checkout, payment, webhook, expiry and address tests in the checkout suite against the real test database (Razorpay replaced by a test gateway). Automated.
+- [ ] Live Razorpay test payment (test-mode card payment through Razorpay Checkout, confirmed against Razorpay). **Not verified.** No payment record exists in the development database.
+- [ ] Live refunds through Razorpay (partial, remaining and full). **Not verified.** The refund logic is covered by automated tests with a recording gateway only.
+- [~] Refunds (automated): an admin issues a full or partial refund through the Razorpay Refunds API. Each refund is recorded as pending, processed or failed. The order closes only when processed refunds cover the payment. Staff are read-only and customers have no access. Covered by 29 automated tests. Limitations: a pending refund stays pending until Razorpay confirms its outcome, and there is no manual resolution. See the Refunds section of the README.
 - [ ] Guest checkout (checkout requires sign-in for now)
-- [ ] Server-side bag for signed-in customers (the bag is in the browser until then)
+- [~] Server-side bag for signed-in customers: see the Phase 4 note. Automated for the API only.
 
 ## Phase 6 — Admin dashboard
 
@@ -98,7 +107,7 @@ Status key: `[x]` done · `[ ]` pending · `[~]` partially done
 - [x] Dashboard: live products, 30-day orders and revenue, awaiting-payment count, low stock, recent orders
 - [x] Products: list with search and filters, create, edit, live or draft status, featured flag
 - [x] Product photos: direct upload to Cloudinary using a signed request, main photo selection, removal
-- [x] Product video: upload with progress, preview with poster frame, replace and remove (needs Cloudinary keys)
+- [~] Product video: upload with progress, preview with poster frame, replace and remove. Not verified end to end: it needs a real video file and Cloudinary keys.
 - [x] Categories: create, nested placement, delete (blocked while subcategories exist)
 - [x] Inventory: stock levels, set or adjust with a reason, every change in the audit log
 - [x] Orders: list with status filter, detail with customer and courier, status changes that follow the allowed rules
@@ -107,8 +116,8 @@ Status key: `[x]` done · `[ ]` pending · `[~]` partially done
 - [x] Homepage banners (hero shows the live banner) and section on/off and order
 - [x] Shipping and tax screen with a live preview of what a shopper pays
 - [x] Customers list with order count and total spent (paid orders)
-- [ ] Analytics beyond the dashboard summary
-- [ ] Cloudinary upload live test (needs CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET)
+- [~] Analytics: API for sales by day for 7, 30 or 90 days (India time), top products by revenue and orders by status. Automated: 5 tests. The `/admin/analytics` page has not been checked in a browser.
+- [~] Cloudinary live test: image upload reported working during development. Video upload is not verified end to end.
 
 ## Phase 7 — Performance and security
 
@@ -136,3 +145,37 @@ Status key: `[x]` done · `[ ]` pending · `[~]` partially done
 - [ ] End-to-end tests
 - [ ] k6 load tests
 - [ ] Bottleneck analysis and optimization
+
+## Deferred engineering work
+
+These items are known and intentionally not implemented in the Phase 2 to 6 checkpoint. None of them is complete.
+
+- [ ] **Safe resolution workflow for stuck pending refunds.** A refund Razorpay never received stays pending indefinitely and blocks further refunds on that payment. Requires a design for a safe manual resolution. Deliberately not automated.
+- [ ] **Razorpay refund webhook integration.** Refund status changes are picked up only when an admin presses Check Status.
+- [ ] **Refund panel automated UI tests.** The refund panel is checked by typecheck and lint only.
+- [ ] **Audit event for pending refund creation.** Only the final outcome (processed or failed) is audited today.
+- [ ] **Multiple captured payment handling.** A refund targets the newest captured payment, while the summary totals all captured payments. Not reachable in normal checkout but untested.
+- [ ] **Razorpay refund lookup pagination.** The lost-refund lookup reads one list of refunds per payment without paging. It must be checked against Razorpay's list page size.
+- [ ] **OrderItem deletion restriction from Phase 3.** Not in this change set.
+- [ ] **Wider product variant schema.** Ring sizes and related variants are not designed or built.
+- [ ] **`.gitattributes` line-ending configuration.** The repository has none, so Git warns that LF files will become CRLF on Windows.
+
+## Verification notes
+
+- Automated results recorded for this checkpoint are listed under "Last verification" below. They were run only against the isolated `jewellery_test` database.
+- Earlier wording in this file claimed a live Razorpay test payment, live partial, remaining and full refunds, a browser check with 26 products, and live Cloudinary video. The repository and the development database hold no evidence for them (the development database has 0 orders and 0 refunds). Those claims were downgraded to "not verified" above. They can be restored only when a recorded test or record exists.
+- Test counts within each phase are historical. Recorded at the time of each phase.
+
+### Last verification
+
+Recorded at the end of the checkpoint documentation review. Commands were run from the repository root.
+
+| Check                                                        | Result                                |
+| ------------------------------------------------------------ | ------------------------------------- |
+| `pnpm format:check`                                          | Pass                                  |
+| `pnpm lint`                                                  | Pass (8 of 8 tasks)                   |
+| `pnpm typecheck`                                             | Pass (8 of 8 tasks)                   |
+| `pnpm --filter @jewellery/storefront test`                   | Pass: 3 files, 16 tests (automated)   |
+| `pnpm --filter @jewellery/api test` against `jewellery_test` | Pass: 12 files, 139 tests (automated) |
+
+Automated results are from the test suites only. They do not show live Razorpay, Shiprocket or Cloudinary behaviour, or any browser behaviour. The development database was not used for tests and was not migrated.

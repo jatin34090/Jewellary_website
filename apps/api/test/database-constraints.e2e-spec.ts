@@ -3,7 +3,8 @@ import { randomUUID } from "node:crypto";
 import { createPrismaClient, type AppPrismaClient } from "@jewellery/database";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { loadDotEnvFile, loadEnv } from "../src/config/env";
+import { loadEnv } from "../src/config/env";
+import { applyTestEnv } from "./support/test-env";
 
 /**
  * The database is the last line of defence. These checks confirm that invalid money and
@@ -14,7 +15,7 @@ describe("Database integrity constraints", () => {
   const createdCouponCodes: string[] = [];
 
   beforeAll(() => {
-    loadDotEnvFile();
+    applyTestEnv();
     prisma = createPrismaClient(loadEnv().databaseUrl, { maxConnections: 2 });
   });
 

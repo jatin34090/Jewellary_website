@@ -12,9 +12,12 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { API_PREFIX, configureApp } from "../src/app.setup";
 import { AppModule } from "../src/app.module";
-import { loadDotEnvFile, loadEnv } from "../src/config/env";
+import { loadEnv } from "../src/config/env";
+import { applyTestEnv } from "./support/test-env";
 
 const TEST_EMAIL_DOMAIN = "@example.com";
+// Unique per run: every account this suite creates carries it, so cleanup removes only those.
+const RUN = randomUUID().slice(0, 8);
 const PASSWORD = "Correct-horse-1";
 
 interface ApiBody<T> {
@@ -39,7 +42,7 @@ function nextClientIp(): string {
 }
 
 function uniqueEmail(): string {
-  return `e2e-${randomUUID()}${TEST_EMAIL_DOMAIN}`;
+  return `e2e-${RUN}-${randomUUID()}${TEST_EMAIL_DOMAIN}`;
 }
 
 function refreshCookie(setCookie: string[] | string | undefined): string | undefined {
@@ -64,7 +67,7 @@ describe("Auth API", () => {
   });
 
   beforeAll(async () => {
-    loadDotEnvFile();
+    applyTestEnv();
     const env = { ...loadEnv(), trustProxy: 1 };
     prisma = createPrismaClient(env.databaseUrl, { maxConnections: 2 });
 
@@ -78,7 +81,7 @@ describe("Auth API", () => {
   afterAll(async () => {
     // Remove only the accounts this suite created. Refresh tokens cascade.
     await prisma.user.deleteMany({
-      where: { email: { startsWith: "e2e-", endsWith: TEST_EMAIL_DOMAIN } },
+      where: { email: { contains: RUN, endsWith: TEST_EMAIL_DOMAIN } },
     });
     await prisma.$disconnect();
     await app.close();

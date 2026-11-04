@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { use, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useState } from "react";
 
 import { Button, Notice } from "@/components/ui/form";
 import type { AdminOrder } from "@/components/admin/types";
@@ -9,6 +9,7 @@ import { ApiError } from "@/lib/api/errors";
 import { formatDate, ORDER_STATUS_LABEL, type OrderStatus } from "@/lib/orders/labels";
 import { formatPrice } from "@/lib/money";
 import { authorizedRequest } from "@/lib/session/session";
+import { RefundPanel } from "@/components/admin/refund-panel";
 
 /** The next steps the API allows from each status. Mirrors the server's transition rules. */
 const NEXT: Partial<Record<OrderStatus, { status: OrderStatus; label: string }[]>> = {
@@ -30,23 +31,29 @@ export default function AdminOrderPage({ params }: { params: Promise<{ orderNumb
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const loadOrder = useCallback(
+    () =>
+      authorizedRequest<AdminOrder>(`/admin/orders/${encodeURIComponent(orderNumber)}`)
+        .then(setOrder)
+        .catch((err: unknown) => {
+          setError(
+            err instanceof ApiError && err.status === 404
+              ? "Order not found."
+              : "Could not load this order.",
+          );
+        }),
+    [orderNumber],
+  );
+
   useEffect(() => {
-    authorizedRequest<AdminOrder>(`/admin/orders/${encodeURIComponent(orderNumber)}`)
-      .then(setOrder)
-      .catch((err: unknown) => {
-        setError(
-          err instanceof ApiError && err.status === 404
-            ? "Order not found."
-            : "Could not load this order.",
-        );
-      });
-  }, [orderNumber]);
+    void loadOrder();
+  }, [loadOrder]);
 
   const change = async (status: OrderStatus) => {
     if (
       status === "CANCELLED" &&
       !window.confirm(
-        "Cancel this order and return its stock? Refunds are handled in the Razorpay dashboard.",
+        "Cancel this order and return its stock? To return the money, issue a refund from the Refunds section afterwards.",
       )
     ) {
       return;
@@ -206,6 +213,10 @@ export default function AdminOrderPage({ params }: { params: Promise<{ orderNumb
           </div>
         </dl>
       </section>
+
+      {order.status !== "PENDING_PAYMENT" ? (
+        <RefundPanel orderNumber={order.orderNumber} onChanged={() => void loadOrder()} />
+      ) : null}
     </div>
   );
 }

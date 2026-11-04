@@ -89,3 +89,20 @@ export const bagStore = createLocalStore<BagLine[]>({
   empty: [],
   parse: parseBag,
 });
+
+/**
+ * Combines the browser's bag with the saved bag from the server. Each product appears once, and the
+ * larger quantity wins so the same piece is never counted twice across devices.
+ */
+export function mergeBagLines(local: BagLine[], remote: BagLine[]): BagLine[] {
+  const merged = new Map<string, BagLine>();
+  for (const line of [...local, ...remote]) {
+    const existing = merged.get(line.slug);
+    if (!existing) {
+      merged.set(line.slug, line);
+    } else if (line.quantity > existing.quantity) {
+      merged.set(line.slug, { ...existing, quantity: clampQuantity(line.quantity) });
+    }
+  }
+  return [...merged.values()].slice(0, MAX_BAG_LINES);
+}

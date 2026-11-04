@@ -59,13 +59,15 @@ export class CreateProductDto {
 
   @ApiPropertyOptional({
     example: "15999.00",
-    description: "Original price. Shown struck through when it is higher than price.",
+    nullable: true,
+    description:
+      "Original price. Shown struck through when it is higher than price. Send null to clear it.",
   })
   @IsOptional()
   @Matches(MONEY_PATTERN, {
     message: "compareAtPrice must be a positive amount with up to two decimals",
   })
-  compareAtPrice?: string;
+  compareAtPrice?: string | null;
 
   @ApiPropertyOptional({ example: "3.20" })
   @IsOptional()

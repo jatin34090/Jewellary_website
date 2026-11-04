@@ -26,3 +26,8 @@ export const wishlistStore = createLocalStore<string[]>({
   empty: [],
   parse: parseWishlist,
 });
+
+/** Combines the browser's wishlist with the saved wishlist from the server, without duplicates. */
+export function mergeWishlists(local: string[], remote: string[]): string[] {
+  return parseWishlist([...local, ...remote]);
+}

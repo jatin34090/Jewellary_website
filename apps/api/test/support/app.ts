@@ -8,7 +8,8 @@ import type { Server } from "node:http";
 import { API_PREFIX, configureApp } from "../../src/app.setup";
 import { AppModule } from "../../src/app.module";
 import { PAYMENT_GATEWAY, type PaymentGateway } from "../../src/modules/payments/razorpay.client";
-import { loadDotEnvFile, loadEnv } from "../../src/config/env";
+import { loadEnv } from "../../src/config/env";
+import { applyTestEnv } from "./test-env";
 
 export const API = `/${API_PREFIX}`;
 
@@ -31,10 +32,14 @@ export interface ApiBody<T> {
 export interface TestContextOptions {
   /** Replaces the Razorpay gateway. Tests use this so no real payment call is made. */
   gateway?: PaymentGateway;
+  /** Test-only settings applied on top of .env.test, such as fake payment keys for one suite. */
+  env?: Record<string, string>;
 }
 
 export async function createTestContext(options: TestContextOptions = {}): Promise<TestContext> {
-  loadDotEnvFile();
+  // Points process.env at the dedicated test database and refuses anything else. The development
+  // .env is never read here, so tests cannot reach development data or real courier and payment keys.
+  applyTestEnv(options.env);
   const env = { ...loadEnv(), trustProxy: 1 };
   const prisma = createPrismaClient(env.databaseUrl, { maxConnections: 2 });
 

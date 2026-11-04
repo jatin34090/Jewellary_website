@@ -8,5 +8,7 @@ export default defineConfig({
     testTimeout: 20_000,
     // Suites share one database. Running files one at a time keeps cleanup predictable.
     fileParallelism: false,
+    // Refuses to start unless the test configuration points at a database named *_test.
+    globalSetup: ["test/support/global-setup.ts"],
   },
 });

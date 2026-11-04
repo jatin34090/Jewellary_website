@@ -5,6 +5,7 @@ import {
   countItems,
   MAX_BAG_LINES,
   MAX_LINE_QUANTITY,
+  mergeBagLines,
   parseBag,
   removeLine,
   setLineQuantity,
@@ -57,5 +58,28 @@ describe("bag", () => {
   it("returns an empty bag for non-array storage content", () => {
     expect(parseBag({ hello: "world" })).toEqual([]);
     expect(parseBag(null)).toEqual([]);
+  });
+});
+
+describe("mergeBagLines", () => {
+  const other = { ...item, slug: "orbit-band", productId: "0190f6a2-0000-7000-8000-000000000002" };
+
+  it("keeps each product once and the larger quantity", () => {
+    const merged = mergeBagLines([{ ...item, quantity: 2 }], [{ ...item, quantity: 5 }]);
+    expect(merged).toEqual([{ ...item, quantity: 5 }]);
+  });
+
+  it("combines lines that only one side has, local first", () => {
+    const merged = mergeBagLines([{ ...item, quantity: 1 }], [{ ...other, quantity: 3 }]);
+    expect(merged.map((line) => line.slug)).toEqual([item.slug, other.slug]);
+  });
+
+  it("never exceeds the bag size limit", () => {
+    const remote = Array.from({ length: MAX_BAG_LINES + 5 }, (_, i) => ({
+      ...item,
+      slug: `product-${i}`,
+      quantity: 1,
+    }));
+    expect(mergeBagLines([], remote)).toHaveLength(MAX_BAG_LINES);
   });
 });

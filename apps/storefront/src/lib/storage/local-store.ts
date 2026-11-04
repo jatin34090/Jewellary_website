@@ -1,5 +1,5 @@
 // A small external store backed by localStorage, read through useSyncExternalStore.
-// Bag and wishlist data is per-browser for now. Server-side carts arrive with checkout (Phase 5).
+// Bag and wishlist data is kept in this browser for guests. Signed-in customers also sync it with the server (see saved-items-sync).
 
 export interface LocalStore<T> {
   /** Current value. Returns the same reference until the value changes, as useSyncExternalStore requires. */

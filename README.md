@@ -85,7 +85,7 @@ pnpm db:seed         # add the six brand categories (safe to run again)
 
 pnpm --filter @jewellery/api dev          # API in watch mode, http://127.0.0.1:3001
 pnpm --filter @jewellery/storefront dev   # storefront, http://localhost:3000
-pnpm --filter @jewellery/api test   # API unit and end-to-end tests (needs infra:up)
+pnpm --filter @jewellery/api test   # API tests; end-to-end suites need the isolated test database (see Test database)
 pnpm lint            # ESLint across all packages
 pnpm typecheck       # TypeScript strict type checking
 pnpm test            # all test suites
@@ -101,6 +101,8 @@ pnpm format:check    # check formatting without changing files
 - Health: `GET /api/v1/health/live` (process up), `GET /api/v1/health` (database reachable)
 - Auth: `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `POST /api/v1/auth/refresh`, `POST /api/v1/auth/logout`
 - Catalogue (public): `GET /api/v1/categories`, `GET /api/v1/categories/:slug`, `GET /api/v1/products` (filters: `q`, `category`, `minPrice`, `maxPrice`, `featured`, `sort`, `limit`, `cursor`), `GET /api/v1/products/:slug`
+- Saved bag and wishlist (signed in): `GET` and `PUT /api/v1/account/bag`, `GET` and `PUT /api/v1/account/wishlist`
+- Analytics (admin, `ADMIN` or `STAFF`): `GET /api/v1/admin/analytics?days=7|30|90`
 - Catalogue (admin, `ADMIN` or `STAFF`): `/api/v1/admin/categories`, `/api/v1/admin/products`, `/api/v1/admin/products/:id/images`, `/api/v1/admin/products/:id/inventory`
 - Every response is wrapped: `{ "success": true, "data": ... }` or `{ "success": false, "error": { "code", "message", "details?" } }`.
 - Access tokens (15 min) go in `Authorization: Bearer <token>`. The refresh token is an HttpOnly cookie scoped to `/api/v1/auth`.
@@ -146,11 +148,63 @@ Checkout does not charge anything until the Razorpay keys are set. Use Razorpay 
 
 Open `http://localhost:3000/admin`. Signed-out visitors see the sign-in form on that page. Staff and admin accounts are normal accounts with a role.
 
-Create the first admin after registering through the storefront:
+Create the first admin with the bootstrap script. Set the values for this one run, so the password is not kept in your shell history:
+
+```powershell
+$env:ADMIN_EMAIL = "you@example.com"
+$env:ADMIN_PASSWORD = "use-a-strong-password-1"
+$env:ADMIN_FIRST_NAME = "Your"
+pnpm --filter @jewellery/api admin:create
+Remove-Item Env:ADMIN_PASSWORD
+```
+
+If the account already exists, the script promotes it to admin and keeps its password. The password must be 8 to 128 characters with a letter and a digit.
+
+Sales figures are on `/admin/analytics` (7, 30 or 90 days, India time).
+
+**Refunds.** Admins can view a refund history, issue a refund for all or part of a paid order, and check a pending refund with Razorpay. Staff can view the history but cannot issue or check refunds. Customers have no access.
+
+### Refunds and pending refunds: known limitations
+
+- A refund is recorded as **pending** before Razorpay is called. It stays pending until Razorpay confirms its outcome. Only a Razorpay status of processed counts as money returned. Failed is final.
+- An admin can use the **Check status** action on a pending refund to ask Razorpay for its current status.
+- If Razorpay never received the request, the refund may **remain pending indefinitely**. The app cannot tell that apart from a refund still being processed.
+- A pending refund **blocks additional refunds** against that payment until the pending refund is resolved.
+- There is **currently no manual admin resolution mechanism**. An unresolved refund cannot be closed or marked failed from the app. Doing so safely is deferred work (see CHECKLIST.md).
+- **Razorpay webhook integration for refunds is not implemented yet.** Refund status changes are picked up only when an admin uses Check status.
+
+## Test database
+
+The end-to-end suites never use the development database. They read `apps/api/.env.test` (git-ignored) and refuse to start unless the database name ends in `_test`.
+
+One-time setup. Replace the placeholder with a password of your own, and keep it out of shell history:
 
 ```bash
-docker exec -i jewellery-ecommerce-postgres-dev psql -U jewellery -d jewellery -c "UPDATE \"User\" SET role = 'ADMIN' WHERE email = 'you@example.com';"
+docker exec -i jewellery-ecommerce-postgres-dev psql -U jewellery -d jewellery -c "CREATE ROLE jewellery_test LOGIN PASSWORD '<choose-a-password>';"
+docker exec -i jewellery-ecommerce-postgres-dev psql -U jewellery -d jewellery -c "CREATE DATABASE jewellery_test OWNER jewellery_test;"
 ```
+
+Create `apps/api/.env.test` with these keys (the database line uses the password you chose):
+
+```
+DATABASE_URL=postgresql://jewellery_test:<choose-a-password>@127.0.0.1:5433/jewellery_test?schema=public
+JWT_ACCESS_SECRET=<at least 32 random characters>
+NODE_ENV=test
+CLOUDINARY_CLOUD_NAME=demo
+CLOUDINARY_API_KEY=e2e-test-key
+CLOUDINARY_API_SECRET=e2e-test-secret-not-real
+CLOUDINARY_UPLOAD_FOLDER=e2e-test
+```
+
+Apply the migrations to the test database only. Set `DATABASE_URL` to the test value for this one command, and do not use the development value:
+
+```powershell
+$env:DATABASE_URL = "<the DATABASE_URL line from apps/api/.env.test, without the key name>"
+pnpm --filter @jewellery/database db:deploy
+Remove-Item Env:DATABASE_URL
+```
+
+Then run the suites with `pnpm --filter @jewellery/api test`. Each run tags its accounts with a unique identifier and removes only those.
 
 ## Database migrations: a warning
 

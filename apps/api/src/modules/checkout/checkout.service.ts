@@ -244,13 +244,28 @@ export class CheckoutService {
 
     const payment = await this.prisma.payment.findFirst({
       where: { providerOrderId: dto.razorpayOrderId, order: { userId } },
+      include: { order: { select: { totalAmount: true } } },
     });
     if (!payment) throw new NotFoundException("Order not found");
+
+    // The signature proves the browser got this pair from Razorpay. Razorpay itself confirms the
+    // order, the amount and the status before the order is marked paid.
+    const confirmed = await this.gateway.fetchPayment(dto.razorpayPaymentId);
+    if (
+      confirmed.orderId !== dto.razorpayOrderId ||
+      confirmed.amount !== toPaise(payment.order.totalAmount)
+    ) {
+      throw new BadRequestException("Payment verification failed");
+    }
+    if (confirmed.status !== "captured" && confirmed.status !== "authorized") {
+      throw new BadRequestException("This payment has not gone through");
+    }
 
     const outcome = await this.payments.applyCapture({
       providerOrderId: dto.razorpayOrderId,
       providerPaymentId: dto.razorpayPaymentId,
-      paymentStatus: "AUTHORIZED",
+      paymentStatus: confirmed.status === "captured" ? "CAPTURED" : "AUTHORIZED",
+      method: confirmed.method,
     });
     if (outcome === "order_closed") {
       throw new ConflictException(

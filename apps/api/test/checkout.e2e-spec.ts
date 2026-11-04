@@ -8,21 +8,18 @@ import type { Server } from "node:http";
 import type { AppPrismaClient } from "@jewellery/database";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-// Razorpay settings for this suite. They are set before the app reads its configuration.
+// Fake Razorpay settings for this suite only. They are passed to createTestContext below.
 const KEY_ID = "rzp_test_e2e";
 const KEY_SECRET = "e2e-key-secret";
 const WEBHOOK_SECRET = "e2e-webhook-secret";
-process.env["RAZORPAY_KEY_ID"] = KEY_ID;
-process.env["RAZORPAY_KEY_SECRET"] = KEY_SECRET;
-process.env["RAZORPAY_WEBHOOK_SECRET"] = WEBHOOK_SECRET;
-process.env["ORDER_SWEEP_INTERVAL_MS"] = "3600000"; // the suite runs the sweep itself
-process.env["ORDER_RESERVATION_MINUTES"] = "30";
 
 import { API, createTestContext, type ApiBody, type TestContext } from "./support/app";
 import type {
   PaymentGateway,
   CreateGatewayOrderInput,
   GatewayOrder,
+  GatewayPayment,
+  GatewayRefund,
 } from "../src/modules/payments/razorpay.client";
 import { OrderExpiryService } from "../src/modules/orders/order-expiry.service";
 
@@ -33,16 +30,46 @@ const PASSWORD = "Correct-horse-1";
 class FakeGateway implements PaymentGateway {
   readonly keyId = KEY_ID;
   readonly calls: CreateGatewayOrderInput[] = [];
+  private readonly amounts = new Map<string, number>();
+  private readonly payments = new Map<string, GatewayPayment>();
   private counter = 0;
 
   createOrder(input: CreateGatewayOrderInput): Promise<GatewayOrder> {
     this.calls.push(input);
     this.counter += 1;
-    return Promise.resolve({
-      id: `order_e2e${RUN}${this.counter}`,
-      amount: input.amountPaise,
-      currency: input.currency,
+    const id = `order_e2e${RUN}${this.counter}`;
+    this.amounts.set(id, input.amountPaise);
+    return Promise.resolve({ id, amount: input.amountPaise, currency: input.currency });
+  }
+
+  /** Test helper: records what Razorpay would report for a payment on this order. */
+  capture(orderId: string, paymentId: string, status = "captured"): void {
+    this.payments.set(paymentId, {
+      id: paymentId,
+      orderId,
+      amount: this.amounts.get(orderId) ?? 0,
+      status,
+      method: "card",
     });
+  }
+
+  fetchPayment(paymentId: string): Promise<GatewayPayment> {
+    const payment = this.payments.get(paymentId);
+    return payment
+      ? Promise.resolve(payment)
+      : Promise.reject(new Error("Unknown payment in test gateway"));
+  }
+
+  refundPayment(): Promise<GatewayRefund> {
+    return Promise.reject(new Error("Refunds are covered in refunds.e2e-spec.ts"));
+  }
+
+  fetchRefund(): Promise<GatewayRefund> {
+    return Promise.reject(new Error("Refunds are covered in refunds.e2e-spec.ts"));
+  }
+
+  listPaymentRefunds(): Promise<GatewayRefund[]> {
+    return Promise.reject(new Error("Refunds are covered in refunds.e2e-spec.ts"));
   }
 }
 
@@ -89,7 +116,16 @@ describe("Checkout, payments and fulfilment", () => {
 
   beforeAll(async () => {
     gateway = new FakeGateway();
-    ctx = await createTestContext({ gateway });
+    ctx = await createTestContext({
+      gateway,
+      env: {
+        RAZORPAY_KEY_ID: KEY_ID,
+        RAZORPAY_KEY_SECRET: KEY_SECRET,
+        RAZORPAY_WEBHOOK_SECRET: WEBHOOK_SECRET,
+        ORDER_SWEEP_INTERVAL_MS: "3600000", // the suite runs the sweep itself
+        ORDER_RESERVATION_MINUTES: "30",
+      },
+    });
 
     const customer = await register(`e2e-buyer-${RUN}@example.com`);
     customerToken = customer.token;
@@ -148,7 +184,7 @@ describe("Checkout, payments and fulfilment", () => {
     const prisma: AppPrismaClient = ctx.prisma;
     // Remove everything this suite created: test users (and their orders, payments and shipments), products, coupons.
     const testUsers = await prisma.user.findMany({
-      where: { email: { startsWith: "e2e-", endsWith: "@example.com" } },
+      where: { email: { contains: RUN, endsWith: "@example.com" } },
       select: { id: true },
     });
     const userIds = testUsers.map((user) => user.id);
@@ -403,6 +439,7 @@ describe("Checkout, payments and fulfilment", () => {
 
     it("confirms a valid payment once and turns reserved stock into a sale", async () => {
       const paymentId = `pay_e2e${RUN}`;
+      gateway.capture(razorpayOrderId, paymentId);
       const before = await stockOf(productB);
       const body = {
         razorpayOrderId,
